@@ -34,5 +34,9 @@ desktop.ini
 *.swp
 *.swo
 
+# Backup files
+.git copy/
+*.bak
+
 # Logs
 *.log

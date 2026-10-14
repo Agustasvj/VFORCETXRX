@@ -1,475 +1,544 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   VFORCE RC TRANSMITTER — MOBILE CLAYMORPHIC DESIGN SYSTEM
+   Tactile, Clean, Minimalist, Matte Clay Finishes, Zero Glassmorphism
+   ═══════════════════════════════════════════════════════════════════════ */
+
 :root {
-  --primary: #00ffcc;
-  --bg-dark: #0f172a;
-  --bg-glass: rgba(15, 23, 42, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --text-light: #f8fafc;
-  --text-muted: #94a3b8;
-  --danger: #ff4757;
-  --success: #2ed573;
+  --bg-mobile: #141720;
+  --bg-surface: #1d222e;
+  --bg-clay-raised: #252b3b;
+  --bg-clay-sunken: #11141c;
+  
+  --primary-clay: #2563eb;
+  --primary-light: #3b82f6;
+  --accent-coral: #f97316;
+  --accent-emerald: #10b981;
+  --danger-clay: #dc2626;
+
+  --text-main: #f8fafc;
+  --text-dim: #94a3b8;
+  --text-muted: #64748b;
+
+  /* Mobile Clay Shadows */
+  --clay-card-shadow:
+    10px 10px 24px rgba(6, 8, 12, 0.7),
+    -6px -6px 18px rgba(45, 53, 72, 0.3),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.1),
+    inset -1px -1px 2px rgba(0, 0, 0, 0.4);
+
+  --clay-btn-shadow:
+    5px 5px 12px rgba(5, 7, 10, 0.6),
+    -4px -4px 10px rgba(48, 57, 78, 0.35),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.15);
+
+  --clay-btn-pressed:
+    inset 4px 4px 8px rgba(3, 4, 7, 0.8),
+    inset -3px -3px 6px rgba(48, 57, 78, 0.2);
+
+  --clay-sunken-dish:
+    inset 6px 6px 14px rgba(4, 5, 8, 0.75),
+    inset -4px -4px 10px rgba(255, 255, 255, 0.04);
+
+  --radius-xl: 28px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-pill: 9999px;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  user-select: none; /* Prevent text selection while driving */
+  -webkit-touch-callout: none;
   -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
 }
 
-body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-dark);
-  color: var(--text-light);
-  overflow: hidden; /* Prevent scrolling */
-  touch-action: none; /* Prevent browser gestures */
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* Background effects */
-.bg-glow {
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(0, 255, 204, 0.15) 0%, rgba(0,0,0,0) 70%);
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: -1;
-}
-
-/* Screens */
-.screen {
-  display: none;
+html, body {
   width: 100%;
   height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-mobile);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  position: fixed;
+}
+
+/* ── Screen Management ─────────────────────────────────────────────── */
+.screen {
   position: absolute;
   top: 0;
   left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  overflow: hidden;
 }
+
 .screen.active {
   display: flex;
-  flex-direction: column;
 }
 
-/* Glassmorphism Panels */
-.glass-panel {
-  background: var(--bg-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
-  padding: 32px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-}
-
-/* Setup Screen */
+/* ═══════════════════════════════════════════════════════════════════
+   SCREEN 1: SETUP & ARMING SCREEN
+   ═══════════════════════════════════════════════════════════════════ */
 #setup-screen {
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: var(--bg-mobile);
 }
 
-.setup-container {
+.clay-mobile-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--clay-card-shadow);
+  padding: 30px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  max-width: 500px;
-  width: 90%;
+  gap: 16px;
 }
 
-h1 {
-  font-size: 2.5rem;
-  margin-bottom: 8px;
-  background: -webkit-linear-gradient(45deg, var(--text-light), var(--primary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-p.subtitle {
-  color: var(--text-muted);
-  margin-bottom: 32px;
-}
-
-.status-indicator {
+.brand-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  border-radius: 20px;
-  background: rgba(255,255,255,0.05);
-  margin-bottom: 32px;
-  font-weight: 500;
+  background: var(--bg-clay-sunken);
+  box-shadow: var(--clay-btn-pressed);
+  padding: 6px 16px;
+  border-radius: var(--radius-pill);
+  color: var(--accent-coral);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.screen-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.screen-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-top: -8px;
+}
+
+.model-badge-box {
+  width: 100%;
+  background: var(--bg-clay-sunken);
+  box-shadow: var(--clay-sunken-dish);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.box-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+}
+
+.model-name-text {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.status-indicator-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dim);
 }
 
 .status-dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--danger);
-  box-shadow: 0 0 10px var(--danger);
+  background: #64748b;
+  box-shadow: var(--clay-btn-shadow);
   transition: all 0.3s ease;
 }
+
 .status-dot.connected {
-  background: var(--success);
-  box-shadow: 0 0 10px var(--success);
+  background: var(--accent-emerald);
+  box-shadow: 0 0 10px var(--accent-emerald);
 }
 
-.btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid var(--glass-border);
-  color: var(--text-light);
-  padding: 16px 32px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.clay-mobile-btn {
   width: 100%;
-  margin-bottom: 16px;
-  backdrop-filter: blur(4px);
-}
-.btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  transform: translateY(-2px);
-}
-.btn:active {
-  transform: translateY(0);
-}
-.btn.primary {
-  background: rgba(0, 255, 204, 0.2);
-  border-color: rgba(0, 255, 204, 0.4);
-  color: var(--primary);
-}
-.btn.primary:hover {
-  background: rgba(0, 255, 204, 0.3);
-  box-shadow: 0 0 20px rgba(0, 255, 204, 0.3);
-}
-
-/* Editor Screen */
-#editor-screen {
-  background: #1e293b;
-}
-
-.editor-toolbar {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 16px;
-  background: var(--bg-glass);
-  padding: 12px 24px;
-  border-radius: 30px;
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  z-index: 100;
-}
-
-.editor-toolbar select, .editor-toolbar button {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 8px;
+  height: 52px;
+  background: var(--bg-clay-raised);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-lg);
   font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: var(--clay-btn-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 
-.editor-toolbar button:hover {
-  background: rgba(255,255,255,0.2);
+.clay-mobile-btn:active {
+  transform: scale(0.97);
+  box-shadow: var(--clay-btn-pressed);
 }
 
-.editor-canvas {
+.clay-mobile-btn.primary {
+  background: var(--primary-clay);
+}
+
+.orientation-tip {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SCREEN 2: TRANSMITTER CONTROL SURFACE
+   ═══════════════════════════════════════════════════════════════════ */
+#tx-screen {
+  flex-direction: column;
+  background: var(--bg-mobile);
+}
+
+/* Minimalist Top HUD Bar */
+.tx-header {
+  height: 44px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+}
+
+.tx-header-left, .tx-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-emerald);
+  box-shadow: 0 0 6px var(--accent-emerald);
+}
+
+.tx-model-tag {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.tx-ping-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  background: var(--bg-clay-sunken);
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.clay-hud-btn {
+  background: var(--bg-clay-raised);
+  color: var(--text-dim);
+  border: none;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--clay-btn-shadow);
+  cursor: pointer;
+}
+
+.clay-hud-btn:active {
+  box-shadow: var(--clay-btn-pressed);
+  transform: scale(0.96);
+}
+
+.clay-hud-btn.danger {
+  background: #7f1d1d;
+  color: #fca5a5;
+}
+
+/* Touch Control Surface */
+.controls-surface {
   flex: 1;
   position: relative;
-}
-
-/* Draggable Items */
-.control-item {
-  position: absolute;
-  border: 2px dashed rgba(255,255,255,0.5);
-  border-radius: 16px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-weight: bold;
-  color: rgba(255,255,255,0.7);
-  background: rgba(255,255,255,0.05);
-  cursor: move;
+  width: 100%;
+  height: calc(100% - 44px);
+  background-color: var(--bg-mobile);
+  overflow: hidden;
   touch-action: none;
 }
-.control-item.selected {
-  border-color: var(--primary);
-  background: rgba(0,255,204,0.1);
-}
 
-.control-item .resize-handle {
+/* Dynamic RC Controls on Mobile Screen */
+.rc-element {
   position: absolute;
-  bottom: -6px;
-  right: -6px;
-  width: 16px;
-  height: 16px;
-  background: var(--primary);
-  border-radius: 50%;
-  cursor: nwse-resize;
-  display: none;
-}
-.control-item.selected .resize-handle {
-  display: block;
-}
-
-.delete-btn {
-  position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 24px;
-  height: 24px;
-  background: var(--danger);
-  border-radius: 50%;
-  color: white;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  display: none;
-  border: none;
-  font-weight: bold;
-}
-.control-item.selected .delete-btn {
-  display: flex;
-}
-
-/* Driving Screen */
-#driving-screen {
-  background: #000; /* Pure black for battery saving and immersion */
-}
-
-.drive-element {
-  position: absolute;
-  border-radius: 16px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-weight: bold;
-  font-size: 1.2rem;
-  color: rgba(255,255,255,0.5);
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.05);
-  backdrop-filter: blur(4px);
-  touch-action: none; /* Crucial for multi-touch */
-  overflow: hidden; /* For pedal fill */
-}
-
-.drive-element.button-A,
-.drive-element.button-B,
-.drive-element.button-X,
-.drive-element.button-Y,
-.drive-element.button-LB,
-.drive-element.button-RB,
-.drive-element.button-BACK,
-.drive-element.button-START,
-.drive-element.button-L3,
-.drive-element.button-R3,
-.drive-element.dpad-up,
-.drive-element.dpad-down,
-.drive-element.dpad-left,
-.drive-element.dpad-right {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: var(--bg-glass);
-  border: 2px solid var(--primary);
-  border-radius: 50%;
-  color: var(--primary);
-  font-weight: bold;
-  font-size: 1.2rem;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-  box-shadow: var(--shadow-glass);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-}
-
-/* Analogue Pedal Styling (Sliders) */
-.drive-element[data-type^="pedal-"] {
   flex-direction: column;
-  justify-content: flex-end;
-  padding-bottom: 20px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
-.pedal-track {
-  position: absolute;
-  top: 10%;
-  bottom: 10%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 6px;
-  background: rgba(0,0,0,0.5);
-  border-radius: 3px;
-  z-index: 1;
+.rc-label {
+  display: none !important;
 }
 
-.pedal-thumb {
-  position: absolute;
-  bottom: 0%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 70%;
-  height: 40%;
-  background-image: url('/static/pedal_plate.png');
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center bottom;
-  z-index: 3;
+/* ── 1. Clay Gimbal / Joystick (Stick) ─────────────────────────────── */
+.rc-element.stick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-
-
-.pedal-label {
-  position: relative;
-  z-index: 5;
-  color: white;
-  font-weight: bold;
-  font-size: 1rem;
-  letter-spacing: 2px;
-  text-shadow: 0 2px 5px rgba(0,0,0,0.8), 0 0 10px rgba(0,0,0,0.5);
-  pointer-events: none;
-}
-
-.pedal-gas .pedal-label { color: #2ed573; text-shadow: 0 0 8px rgba(46, 213, 115, 0.5), 0 2px 4px #000; }
-.pedal-brake .pedal-label { color: #ff4757; text-shadow: 0 0 8px rgba(255, 71, 87, 0.5), 0 2px 4px #000; }
-.pedal-clutch .pedal-label { color: #ffa502; text-shadow: 0 0 8px rgba(255, 165, 2, 0.5), 0 2px 4px #000; }
-
-/* Steering Wheel Control */
-.drive-element.steering-wheel {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-.drive-element.steering-wheel.active {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-.drive-element.steering-wheel.active svg {
-  filter: drop-shadow(0 0 10px rgba(0, 255, 204, 0.8));
-}
-.drive-element.steering-wheel svg {
+.stick-dish {
   width: 100%;
   height: 100%;
-  pointer-events: none;
+  max-width: 220px;
+  max-height: 220px;
+  aspect-ratio: 1 / 1;
+  border-radius: 24px; /* Square travel area with rounded corners */
+  background: var(--bg-clay-sunken);
+  box-shadow: var(--clay-sunken-dish);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Active states for drive elements */
-.drive-element.active {
-  background: rgba(0, 255, 204, 0.3);
-  border-color: var(--primary);
-  color: white;
-  box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
-  transform: scale(0.98);
-}
-
-.drive-element.pedal-gas.active {
-  background: rgba(46, 213, 115, 0.3);
-  border-color: var(--success);
-  box-shadow: 0 0 20px rgba(46, 213, 115, 0.2);
-}
-
-.drive-element.pedal-brake.active {
-  background: rgba(255, 71, 87, 0.3);
-  border-color: var(--danger);
-  box-shadow: 0 0 20px rgba(255, 71, 87, 0.2);
-}
-
-.hud {
+/* Gimbal crosshair marks */
+.stick-dish::before {
+  content: '';
   position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  width: 70%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.stick-dish::after {
+  content: '';
+  position: absolute;
+  height: 70%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.stick-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--bg-clay-raised);
+  box-shadow: 
+    4px 4px 12px rgba(0, 0, 0, 0.6),
+    -3px -3px 10px rgba(55, 65, 88, 0.4),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.15),
+    inset -2px -2px 4px rgba(0, 0, 0, 0.4);
+  position: absolute;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.05s ease-out;
+}
+
+/* Concentric tactile thumb rings */
+.stick-thumb::after {
+  content: '';
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  background: var(--primary-clay);
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* ── 2. Clay Throttle / Slider ─────────────────────────────────────── */
+.rc-element.slider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slider-dish {
+  width: 68px;
+  height: 90%;
+  border-radius: 34px;
+  background: var(--bg-clay-sunken);
+  box-shadow: var(--clay-sunken-dish);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slider-center-tick {
+  position: absolute;
+  top: 50%;
+  width: 70%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-50%);
+}
+
+.slider-thumb {
+  width: 60px;
+  height: 48px;
+  border-radius: 18px;
+  background: var(--bg-clay-raised);
+  box-shadow: var(--clay-btn-shadow);
+  position: absolute;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slider-thumb::after {
+  content: '';
+  width: 30px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--accent-coral);
+  box-shadow: 0 0 4px var(--accent-coral);
+}
+
+/* ── 3. Clay Toggle Switch (2-Pos & 3-Pos) ─────────────────────────── */
+.rc-element.switch-2pos, .rc-element.switch-3pos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.switch-panel {
+  width: 58px;
+  height: 90px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-clay-raised);
+  box-shadow: var(--clay-card-shadow);
   display: flex;
   flex-direction: column;
   align-items: center;
-  pointer-events: none;
-  z-index: 10;
+  justify-content: space-between;
+  padding: 10px 8px;
+  cursor: pointer;
 }
 
-.hud-steering {
-  font-size: 2rem;
-  font-weight: 800;
-  color: var(--primary);
-  text-shadow: 0 0 10px rgba(0,255,204,0.5);
-}
-
-.hud-rotations {
-  font-size: 1rem;
-  color: var(--text-muted);
-}
-
-.exit-btn {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: white;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+.switch-slot {
+  width: 22px;
+  height: 52px;
+  border-radius: 11px;
+  background: var(--bg-clay-sunken);
+  box-shadow: var(--clay-sunken-dish);
+  position: relative;
   display: flex;
   justify-content: center;
+}
+
+.switch-knob {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-emerald);
+  box-shadow: var(--clay-btn-shadow);
+  position: absolute;
+  transition: top 0.15s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+.switch-2pos .switch-knob.pos-up { top: 0; }
+.switch-2pos .switch-knob.pos-down { top: 26px; }
+
+.switch-3pos .switch-knob.pos-up { top: 0; }
+.switch-3pos .switch-knob.pos-mid { top: 13px; }
+.switch-3pos .switch-knob.pos-down { top: 26px; }
+
+.switch-indicator-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+/* ── 4. Clay Momentary Button ──────────────────────────────────────── */
+.rc-element.button {
+  display: flex;
   align-items: center;
-  font-size: 1.2rem;
-  cursor: pointer;
-  z-index: 100;
-  backdrop-filter: blur(4px);
+  justify-content: center;
 }
 
-.recenter-btn {
+.clay-push-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--bg-clay-raised);
+  box-shadow: var(--clay-btn-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.clay-push-btn.pressed {
+  transform: scale(0.93);
+  box-shadow: var(--clay-btn-pressed);
+  background: var(--primary-clay);
+}
+
+/* ── 5. Clay Rotary Knob ───────────────────────────────────────────── */
+.rc-element.knob {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.knob-body {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--bg-clay-raised);
+  box-shadow: var(--clay-btn-shadow);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.knob-pointer {
   position: absolute;
-  top: 20px;
-  left: 20px;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: white;
-  padding: 10px 16px;
-  border-radius: 20px;
-  font-weight: bold;
-  cursor: pointer;
-  z-index: 100;
-  backdrop-filter: blur(4px);
-}
-
-.tilt-btn {
-  position: absolute;
-  top: 20px;
-  left: 140px;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.25);
-  color: white;
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-weight: bold;
-  font-size: 0.9rem;
-  cursor: pointer;
-  z-index: 100;
-  backdrop-filter: blur(4px);
-  transition: all 0.25s ease;
-  letter-spacing: 0.5px;
-}
-
-.tilt-btn:active {
-  transform: scale(0.95);
-}
-
-.tilt-btn.tilt-active {
-  background: rgba(0, 255, 204, 0.25);
-  border-color: var(--primary);
-  color: var(--primary);
-  box-shadow: 0 0 16px rgba(0, 255, 204, 0.4), inset 0 0 8px rgba(0, 255, 204, 0.1);
-  animation: tilt-pulse 2s ease-in-out infinite;
-}
-
-@keyframes tilt-pulse {
-  0%, 100% { box-shadow: 0 0 16px rgba(0, 255, 204, 0.4), inset 0 0 8px rgba(0, 255, 204, 0.1); }
-  50% { box-shadow: 0 0 28px rgba(0, 255, 204, 0.7), inset 0 0 12px rgba(0, 255, 204, 0.2); }
+  top: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-coral);
+  box-shadow: 0 0 6px var(--accent-coral);
 }

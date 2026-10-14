@@ -2,47 +2,79 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Virtual Sim Wheel</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=7">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>VForce RC Transmitter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=15">
 </head>
 <body>
 
-  <!-- Setup Screen -->
+  <!-- Screen 1: Connect / Setup Screen -->
   <div id="setup-screen" class="screen active">
-    <div class="bg-glow"></div>
-    <div class="setup-container glass-panel">
-      <h1>Sim Wheel</h1>
-      <p class="subtitle">Turn your phone into a racing wheel</p>
-
-      <div class="status-indicator">
-        <div id="status-dot" class="status-dot"></div>
-        <span id="status-text">Disconnected</span>
+    <div class="clay-mobile-card">
+      <div class="brand-badge">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="2"></circle>
+          <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+        </svg>
+        <span>VFORCE RC</span>
       </div>
 
-      <button id="btn-start" class="btn primary">Start Driving</button>
+      <h1 class="screen-title">Transmitter Link</h1>
+      <p class="screen-subtitle">Your mobile device is the remote control interface</p>
+
+      <div class="model-badge-box">
+        <span class="box-label">ACTIVE MODEL</span>
+        <div id="mobile-model-name" class="model-name-text">Loading Model...</div>
+      </div>
+
+      <div class="status-indicator-box">
+        <div id="status-dot" class="status-dot"></div>
+        <span id="status-text">Connecting to Base Station...</span>
+      </div>
+
+      <button id="btn-start" class="clay-mobile-btn primary">
+        <span>ARM & TAKE CONTROL</span>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </button>
+
+      <div class="orientation-tip">
+        <span>🔄 Rotate to Landscape for best control grip</span>
+      </div>
     </div>
   </div>
 
-
-
-  <!-- Driving Screen -->
-  <div id="driving-screen" class="screen">
-    <button id="btn-recenter" class="recenter-btn">⟳ Recenter</button>
-    <button id="btn-tilt" class="tilt-btn">📱 Tilt</button>
-    <button id="btn-exit" class="exit-btn">✕</button>
+  <!-- Screen 2: Transmitter Control Surface -->
+  <div id="tx-screen" class="screen">
     
-    <div class="hud">
-      <div id="hud-steering" class="hud-steering">0°</div>
-      <div id="hud-rotations" class="hud-rotations">0.00 rot</div>
+    <!-- Minimalist Status Bar -->
+    <header class="tx-header">
+      <div class="tx-header-left">
+        <span class="live-dot"></span>
+        <span id="tx-hud-model" class="tx-model-tag">RC Model</span>
+      </div>
+      
+      <div class="tx-header-center">
+        <span id="tx-hud-ping" class="tx-ping-tag">-- ms</span>
+      </div>
+
+      <div class="tx-header-right">
+        <button id="btn-recenter" class="clay-hud-btn" title="Recenter sticks">⟳ Center</button>
+        <button id="btn-exit" class="clay-hud-btn danger" title="Disarm & Exit">✕ Disarm</button>
+      </div>
+    </header>
+
+    <!-- Interactive Touch Control Surface -->
+    <div id="controls-surface" class="controls-surface">
+      <!-- Dynamic RC controls are rendered here based on active model elements -->
     </div>
 
-    <div id="drive-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
-      <!-- Driving elements go here -->
-    </div>
   </div>
 
-  <script src="/static/app.js?v=10"></script>
+  <script src="/static/app.js?v=15"></script>
 </body>
 </html>

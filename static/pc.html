@@ -1,142 +1,417 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
-  <title>VForce V 1.0 BETA</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/pc.css?v=5">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VForce RC Base Station</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/pc.css?v=15">
 </head>
-
 <body>
-  <div class="sidebar">
-    <div class="logo">
-      <div class="logo-icon"></div>
-      <div>
-        <h1>VForce</h1>
-        <span class="subtitle">V 1.0 BETA</span>
+
+  <!-- Top App Bar -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="2"></circle>
+          <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-title">VFORCE RC</span>
+        <span class="brand-badge">TRANSMITTER</span>
       </div>
     </div>
 
-    <div class="panel">
-      <h3>HOW TO CONNECT</h3>
-      <div class="info-box">
-        <p><strong>Broadcasting on LAN</strong></p>
-        <p>Open this URL on your phone's browser:</p>
-        <div id="connect-url" class="url-display">http://Loading...</div>
+    <!-- Model Management Strip -->
+    <div class="model-bar">
+      <span class="bar-label">MODEL</span>
+      <div class="clay-select-wrapper">
+        <select id="model-select"></select>
       </div>
-    </div>
-  </div>
-
-  <div class="main-content">
-    <div class="top-bar">
-      <a href="/" class="btn btn-outline" style="text-decoration: none; display: flex; align-items: center; gap: 8px; margin-right: auto;">🏠 Home</a>
-      <div class="profile-select-wrapper">
-        <label>GAME PROFILES</label>
-        <select id="profile-select"></select>
-      </div>
-      <button id="btn-new-profile" class="btn btn-outline">+ New Profile</button>
+      <button id="btn-new-model" class="clay-btn mini" title="Create new RC model">+ New</button>
+      <button id="btn-dup-model" class="clay-btn mini" title="Duplicate current model">Duplicate</button>
+      <button id="btn-del-model" class="clay-btn mini danger" title="Delete current model">Delete</button>
     </div>
 
-    <div class="profile-settings panel">
-      <div class="settings-header">
-        <h2>Profile Settings</h2>
-      </div>
-      <div class="settings-grid">
-        <div class="form-group">
-          <label>Profile Name</label>
-          <input type="text" id="prof-name">
-        </div>
-        <div class="form-group">
-          <label>Max Steering Angle (Degrees)</label>
-          <input type="number" id="prof-steering-angle" value="180">
-          <small>e.g., 180 for F1, 900 for Trucking</small>
-        </div>
-        <div class="form-group">
-          <label>Return to Center Speed</label>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <input type="range" id="prof-return-speed" min="0" max="30" value="5" step="1" style="flex: 1;">
-            <span id="prof-return-val" style="width: 30px; text-align: right;">5</span>
+    <!-- Main Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="tab-layout">Layout & Map</button>
+      <button class="tab-btn" data-tab="tab-monitor">Live Channels</button>
+      <button class="tab-btn" data-tab="tab-curves">Trims & Expo</button>
+      <button class="tab-btn" data-tab="tab-mixing">Mixing & Limits</button>
+      <button class="tab-btn" data-tab="tab-output">Receiver / Link</button>
+    </nav>
+
+    <!-- Header Actions -->
+    <div class="header-actions">
+      <button id="btn-save" class="clay-btn primary">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+        Save Model
+      </button>
+      <button id="btn-quit" class="clay-btn icon-only danger" title="Shutdown Server">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Notification Banner -->
+  <div id="toast" class="toast">Model saved successfully</div>
+
+  <!-- Main View Area -->
+  <main class="app-main">
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 1: LAYOUT BUILDER & CHANNEL MAPPING -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="tab-layout" class="tab-content active">
+      <div class="layout-workspace">
+        
+        <!-- Canvas Left / Center -->
+        <div class="clay-panel canvas-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Phone Screen Designer</h3>
+              <p class="panel-sub">Drag and position RC controls for your phone interface</p>
+            </div>
+            <div class="canvas-actions">
+              <div class="clay-select-wrapper">
+                <select id="add-element-type">
+                  <option value="stick">Gimbal / Stick (2-Axis)</option>
+                  <option value="slider">Throttle / Slider (1-Axis)</option>
+                  <option value="switch-2pos">2-Pos Toggle Switch</option>
+                  <option value="switch-3pos">3-Pos Mode Switch</option>
+                  <option value="button">Momentary Push Button</option>
+                  <option value="knob">Rotary Dial Knob</option>
+                </select>
+              </div>
+              <button id="btn-add-element" class="clay-btn secondary">+ Add Element</button>
+            </div>
           </div>
-          <small>0 = No auto-center, 5 = Smooth, 25 = Instant (Drifting)</small>
-        </div>
-        <!-- Steering Mode has been removed -->
-        <div class="form-group">
-          <label>Steering Wheel Style</label>
-          <select id="prof-wheel-style"></select>
-        </div>
-        <div class="form-group">
-          <label>Pedal Style</label>
-          <select id="prof-pedal-style"></select>
-        </div>
-        <div class="form-group">
-          <label>Background Image</label>
-          <select id="prof-bg-style"></select>
-        </div>
-        <div class="form-group">
-          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-            <input type="checkbox" id="prof-tilt-enabled" style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;">
-            Enable Tilt-to-Steer
-          </label>
-          <small>Phone tilt controls the steering wheel instead of touch</small>
-        </div>
-        <div class="form-group" id="tilt-sensitivity-row" style="display: none;">
-          <label>Tilt Sensitivity</label>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <input type="range" id="prof-tilt-sensitivity" min="0.5" max="3.0" value="1.5" step="0.1" style="flex: 1;">
-            <span id="prof-tilt-sensitivity-val" style="width: 40px; text-align: right;">1.5x</span>
-          </div>
-          <small>0.5x = Very gentle, 1.5x = Default, 3.0x = Very responsive</small>
-          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-top: 10px;">
-            <input type="checkbox" id="prof-tilt-inverted" style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;">
-            Invert Tilt Direction
-          </label>
-          <small>Swap left/right — tilt left steers right, tilt right steers left</small>
-        </div>
-      </div>
-    </div>
 
-    <div class="editor-section">
-      <div class="layout-editor panel">
-        <div class="settings-header">
-          <h2>Layout Builder</h2>
-          <div class="add-controls">
-            <select id="element-type">
-              <!-- Options are injected dynamically via pc.js based on mode -->
-            </select>
-            <button id="btn-add-element" class="btn btn-primary">Add Element</button>
+          <div class="phone-frame-outer">
+            <div class="phone-frame">
+              <div class="phone-notch"></div>
+              <div id="editor-canvas" class="phone-canvas">
+                <!-- Elements injected here -->
+              </div>
+            </div>
+          </div>
+
+          <div class="canvas-footer-tip">
+            <span>💡 Tip: Click any control on phone to inspect and customize its label, size, and channel mappings.</span>
           </div>
         </div>
-        <div class="canvas-container">
-          <div id="editor-canvas"></div>
+
+        <!-- Sidebar Right: Properties & Channel Mapping -->
+        <div class="layout-sidebars">
+          <!-- Selected Element Editor -->
+          <div class="clay-panel element-props-panel" id="element-props-panel">
+            <div class="panel-header">
+              <h3>Selected Element</h3>
+              <button id="btn-del-element" class="clay-btn mini danger">Remove</button>
+            </div>
+            <div id="props-form" class="props-form">
+              <div class="form-row">
+                <label>Label</label>
+                <input type="text" id="prop-label" class="clay-input" placeholder="e.g. Throttle">
+              </div>
+              <div class="form-row grid-2">
+                <div>
+                  <label>Width (%)</label>
+                  <input type="number" id="prop-w" class="clay-input" min="5" max="95">
+                </div>
+                <div>
+                  <label>Height (%)</label>
+                  <input type="number" id="prop-h" class="clay-input" min="5" max="95">
+                </div>
+              </div>
+              <div class="form-row grid-2">
+                <div>
+                  <label>Pos X (%)</label>
+                  <input type="number" id="prop-x" class="clay-input" min="0" max="90">
+                </div>
+                <div>
+                  <label>Pos Y (%)</label>
+                  <input type="number" id="prop-y" class="clay-input" min="0" max="90">
+              <div class="form-row" id="row-prop-stick-hold" style="display: none;">
+                <label>Axis Return Mode</label>
+                <select id="prop-stick-hold" class="clay-input">
+                  <option value="none">Spring-Return Both Axes (Standard)</option>
+                  <option value="x">Hold X-Axis (Throttle Mode on X)</option>
+                  <option value="y">Hold Y-Axis (Throttle Mode on Y)</option>
+                  <option value="both">Hold Both Axes (Friction on both)</option>
+                </select>
+                <small style="color:var(--text-muted); font-size:0.72rem;">Sets whether an axis holds its position without snapping to center</small>
+              </div>
+            </div>
+            <div id="props-empty-hint" class="empty-hint">Select a control on the phone screen to edit its properties</div>
+          </div>
+
+          <!-- Channel Mappings Table -->
+          <div class="clay-panel mappings-panel">
+            <div class="panel-header">
+              <h3>Channel Assignments</h3>
+              <span class="badge" id="mapping-count">0 Mapped</span>
+            </div>
+            <div class="mapping-table-scroll">
+              <table class="clay-table">
+                <thead>
+                  <tr>
+                    <th>Input Source</th>
+                    <th>Target CH</th>
+                    <th>Invert</th>
+                  </tr>
+                </thead>
+                <tbody id="mappings-tbody">
+                  <!-- Injected via pc.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Model General Settings -->
+          <div class="clay-panel model-meta-panel">
+            <div class="panel-header">
+              <h3>Model Info</h3>
+            </div>
+            <div class="form-row">
+              <label>Model Name</label>
+              <input type="text" id="model-name-input" class="clay-input" placeholder="Model Name">
+            </div>
+            <div class="form-row">
+              <label>Total Channels</label>
+              <select id="model-channels-count" class="clay-input">
+                <option value="4">4 Channels</option>
+                <option value="6">6 Channels</option>
+                <option value="8">8 Channels</option>
+                <option value="12">12 Channels</option>
+                <option value="16" selected>16 Channels</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 2: LIVE 16-CHANNEL MONITOR -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="tab-monitor" class="tab-content">
+      <div class="clay-panel monitor-panel">
+        <div class="panel-header">
+          <div>
+            <h3>Live Channel Telemetry</h3>
+            <p class="panel-sub">Real-time output sent to receiver (1000 µs min • 1500 µs center • 2000 µs max)</p>
+          </div>
+          <div class="monitor-stats">
+            <div class="stat-pill"><span class="dot live"></span> Live Telemetry</div>
+            <div class="stat-pill"><span id="ws-latency">- ms</span> Latency</div>
+          </div>
+        </div>
+
+        <div class="channel-monitor-grid" id="channel-monitor-grid">
+          <!-- 16 Channel bars rendered dynamically -->
         </div>
       </div>
+    </section>
 
-      <div class="mapping-editor panel">
-        <div class="settings-header">
-          <h2>Input Mapping</h2>
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 3: TRIMS & EXPONENTIAL CURVES -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="tab-curves" class="tab-content">
+      <div class="clay-panel curves-panel">
+        <div class="panel-header">
+          <div>
+            <h3>Trims & Exponential Curves</h3>
+            <p class="panel-sub">Fine-tune center point, dual rates, and exponential sensitivity per channel</p>
+          </div>
         </div>
-        <div class="mapping-list" id="mapping-list">
-          <!-- Mappings will be injected here -->
+
+        <div class="curves-channel-selector">
+          <label>Select Channel to Configure:</label>
+          <div class="channel-pills" id="curves-channel-pills">
+            <!-- CH1..CH16 pill buttons -->
+          </div>
         </div>
-      </div>
-    </div>
 
-    <div class="bottom-bar" style="display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <button id="btn-save" class="btn btn-primary">Save All Changes</button>
-        <span id="save-status"></span>
-      </div>
-      <div>
-        <button id="btn-quit" class="btn" style="background: rgba(255, 60, 60, 0.8); color: white;">Quit VForce</button>
-      </div>
-      <div style="color: rgba(255,255,255,0.4); font-size: 0.9rem;">
-        by SIERRA.VJ
-      </div>
-    </div>
-  </div>
+        <div class="curves-editor-grid">
+          <div class="clay-card curve-controls-card">
+            <h4 id="active-curve-channel-title">CH 1 Configuration</h4>
+            
+            <!-- Trim -->
+            <div class="curve-row">
+              <div class="curve-label-row">
+                <span class="label">Sub-Trim Offset</span>
+                <span class="val" id="val-trim">0%</span>
+              </div>
+              <input type="range" id="slider-trim" class="clay-range" min="-50" max="50" value="0" step="1">
+              <small>Shifts the physical neutral center position</small>
+            </div>
 
-  <script src="/static/pc.js?v=6"></script>
+            <!-- Rate -->
+            <div class="curve-row">
+              <div class="curve-label-row">
+                <span class="label">Dual Rate (Travel Throw)</span>
+                <span class="val" id="val-rate">100%</span>
+              </div>
+              <input type="range" id="slider-rate" class="clay-range" min="10" max="140" value="100" step="1">
+              <small>Scales maximum servo / control surface travel</small>
+            </div>
+
+            <!-- Expo -->
+            <div class="curve-row">
+              <div class="curve-label-row">
+                <span class="label">Exponential (Expo)</span>
+                <span class="val" id="val-expo">0%</span>
+              </div>
+              <input type="range" id="slider-expo" class="clay-range" min="0" max="100" value="0" step="1">
+              <small>Softens sensitivity around center stick without losing max throw</small>
+            </div>
+          </div>
+
+          <!-- Curve Preview Canvas -->
+          <div class="clay-card curve-canvas-card">
+            <h4>Transfer Curve Preview</h4>
+            <div class="canvas-wrap">
+              <canvas id="curve-canvas" width="360" height="260"></canvas>
+            </div>
+            <div class="curve-legend">
+              <span class="legend-item"><span class="legend-color linear"></span> Linear (0% Expo)</span>
+              <span class="legend-item"><span class="legend-color active-curve"></span> Active Curve</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 4: MIXING & ENDPOINT LIMITS -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="tab-mixing" class="tab-content">
+      <div class="mixing-grid">
+        
+        <!-- Programmable Mixer -->
+        <div class="clay-panel mixing-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Programmable Mixer</h3>
+              <p class="panel-sub">Combine channels for Elevon (Flying Wing), V-Tail, Differential Drive, Flaperons</p>
+            </div>
+            <button id="btn-add-mix" class="clay-btn secondary">+ Add Mix</button>
+          </div>
+
+          <div class="mixes-container" id="mixes-container">
+            <!-- Mix rules injected here -->
+          </div>
+
+          <!-- Mix Presets -->
+          <div class="mix-presets-bar">
+            <span>Quick Presets:</span>
+            <button class="clay-btn mini" id="btn-preset-elevon">Elevon (Delta)</button>
+            <button class="clay-btn mini" id="btn-preset-vtail">V-Tail</button>
+            <button class="clay-btn mini" id="btn-preset-diff">Diff Steering</button>
+          </div>
+        </div>
+
+        <!-- Endpoints (Travel Limits) -->
+        <div class="clay-panel endpoints-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Channel Endpoints & Failsafe</h3>
+              <p class="panel-sub">Safety travel limits (Min/Max) and disconnect failsafe values</p>
+            </div>
+          </div>
+
+          <div class="endpoints-table-scroll">
+            <table class="clay-table">
+              <thead>
+                <tr>
+                  <th>Channel</th>
+                  <th>Min Limit</th>
+                  <th>Max Limit</th>
+                  <th>Failsafe</th>
+                </tr>
+              </thead>
+              <tbody id="endpoints-tbody">
+                <!-- 16 Channels injected here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TAB 5: RECEIVER & NETWORK OUTPUT -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section id="tab-output" class="tab-content">
+      <div class="output-grid">
+
+        <!-- Phone Connection Box -->
+        <div class="clay-panel phone-link-panel">
+          <div class="panel-header">
+            <h3>Phone Transmitter Connection</h3>
+          </div>
+          <div class="link-info-body">
+            <p>Connect your smartphone to the same Wi-Fi network and open the address below:</p>
+            <div class="url-badge-box">
+              <span id="phone-url-display" class="url-text">Loading...</span>
+              <button id="btn-copy-url" class="clay-btn mini">Copy</button>
+            </div>
+            <div class="notice-card">
+              <strong>🔒 HTTPS Security Notice:</strong>
+              <p>Because the phone browser uses modern multi-touch and sensors, HTTPS is enabled. When prompted with "Your connection is not private / Self-Signed Certificate", click <em>Advanced → Proceed to website</em> once.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hardware Output (ESP32 / UDP Receiver) -->
+        <div class="clay-panel receiver-config-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Hardware Receiver Output (UDP / ESP32)</h3>
+              <p class="panel-sub">Direct channel stream over Wi-Fi UDP to your receiver microcontroller</p>
+            </div>
+          </div>
+          <div class="config-form">
+            <div class="form-row toggle-row">
+              <label>Enable UDP Transmitter Output</label>
+              <input type="checkbox" id="out-udp-enabled" class="clay-toggle">
+            </div>
+            <div class="form-row">
+              <label>Receiver Target IP</label>
+              <input type="text" id="out-target-ip" class="clay-input" placeholder="192.168.4.1">
+              <small>ESP32 Access Point default is 192.168.4.1, or enter Station IP</small>
+            </div>
+            <div class="form-row grid-2">
+              <div>
+                <label>Target UDP Port</label>
+                <input type="number" id="out-target-port" class="clay-input" value="8888">
+              </div>
+              <div>
+                <label>Packet Format</label>
+                <select id="out-protocol" class="clay-input">
+                  <option value="udp_raw_us">Binary µs (16x uint16, 32 bytes)</option>
+                  <option value="udp_json">JSON Packet {"channels": [...]}</option>
+                </select>
+              </div>
+            </div>
+            <button id="btn-save-output" class="clay-btn primary" style="align-self: flex-start; margin-top: 10px;">Save Output Config</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/pc.js?v=15"></script>
 </body>
-
 </html>

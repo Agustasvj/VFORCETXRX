@@ -1,0 +1,300 @@
+{
+  "active_model": "default_plane",
+  "models": {
+    "default_car": {
+      "name": "RC Car (4-Channel)",
+      "channels": 4,
+      "elements": [
+        {
+          "id": "el_stick_1",
+          "type": "stick",
+          "x": 0,
+          "y": 19,
+          "width": 38,
+          "height": 66,
+          "text": "Steering"
+        },
+        {
+          "id": "el_slider_1",
+          "type": "slider",
+          "x": 78,
+          "y": 18,
+          "width": 16,
+          "height": 66,
+          "text": "Throttle"
+        },
+        {
+          "id": "el_sw_1",
+          "type": "switch-2pos",
+          "x": 39,
+          "y": 30,
+          "width": 14,
+          "height": 26,
+          "text": "Lights"
+        },
+        {
+          "id": "el_btn_1",
+          "type": "button",
+          "x": 39,
+          "y": 59,
+          "width": 14,
+          "height": 26,
+          "text": "Horn"
+        },
+        {
+          "id": "el_knob_mv8nnah1",
+          "type": "knob",
+          "x": 56,
+          "y": 32,
+          "width": 18,
+          "height": 30,
+          "text": "KNOB"
+        },
+        {
+          "id": "el_switch-3pos_mv8nrbfe",
+          "type": "switch-3pos",
+          "x": 61,
+          "y": 3,
+          "width": 12,
+          "height": 26,
+          "text": "SWITCH-3POS"
+        }
+      ],
+      "channel_map": {
+        "el_stick_1_x": {
+          "channel": 1,
+          "reversed": false
+        },
+        "el_stick_1_y": {
+          "channel": 2,
+          "reversed": false
+        },
+        "el_slider_1": {
+          "channel": 3,
+          "reversed": false
+        },
+        "el_sw_1": {
+          "channel": 4,
+          "reversed": false
+        },
+        "el_btn_1": {
+          "channel": 5,
+          "reversed": false
+        },
+        "el_knob_mv8nnah1": {
+          "channel": 6,
+          "reversed": false
+        },
+        "el_switch-3pos_mv8nrbfe": {
+          "channel": 7,
+          "reversed": false
+        }
+      },
+      "trims": {
+        "1": 1,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "rates": {
+        "1": 103,
+        "2": 100,
+        "3": 100,
+        "4": 100
+      },
+      "expo": {
+        "1": 44,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "endpoints": {
+        "1": {
+          "min": -100,
+          "max": 100
+        },
+        "2": {
+          "min": -100,
+          "max": 100
+        },
+        "3": {
+          "min": -100,
+          "max": 100
+        },
+        "4": {
+          "min": 0,
+          "max": 100
+        }
+      },
+      "mixing": [
+        {
+          "source": 2,
+          "destination": 2,
+          "weight": 50,
+          "offset": 0
+        },
+        {
+          "source": 4,
+          "destination": 2,
+          "weight": 50,
+          "offset": 0
+        },
+        {
+          "source": 2,
+          "destination": 4,
+          "weight": 50,
+          "offset": 0
+        },
+        {
+          "source": 4,
+          "destination": 4,
+          "weight": -50,
+          "offset": 0
+        }
+      ],
+      "failsafe": {
+        "1": 0,
+        "2": 0,
+        "3": -100,
+        "4": 0
+      },
+      "bg_style": ""
+    },
+    "default_plane": {
+      "name": "RC Plane / Drone (8-Channel)",
+      "channels": 8,
+      "elements": [
+        {
+          "id": "el_gimbal_left",
+          "type": "stick",
+          "x": 5,
+          "y": 18,
+          "width": 38,
+          "height": 66,
+          "text": "Rud / Thr",
+          "hold_axis": "y"
+        },
+        {
+          "id": "el_gimbal_right",
+          "type": "stick",
+          "x": 57,
+          "y": 29,
+          "width": 38,
+          "height": 66,
+          "text": "Ail / Ele"
+        },
+        {
+          "id": "el_sw_mode",
+          "type": "switch-3pos",
+          "x": 45,
+          "y": 18,
+          "width": 10,
+          "height": 28,
+          "text": "Flight Mode"
+        },
+        {
+          "id": "el_sw_arm",
+          "type": "switch-2pos",
+          "x": 45,
+          "y": 55,
+          "width": 10,
+          "height": 28,
+          "text": "Arm / Disarm"
+        },
+        {
+          "id": "el_knob_mv8p8ygt",
+          "type": "knob",
+          "x": 64,
+          "y": 6,
+          "width": 10,
+          "height": 30,
+          "text": "KNOB"
+        }
+      ],
+      "channel_map": {
+        "el_gimbal_right_x": {
+          "channel": 1,
+          "reversed": false
+        },
+        "el_gimbal_right_y": {
+          "channel": 2,
+          "reversed": false
+        },
+        "el_gimbal_left_y": {
+          "channel": 3,
+          "reversed": false
+        },
+        "el_gimbal_left_x": {
+          "channel": 4,
+          "reversed": false
+        },
+        "el_sw_mode": {
+          "channel": 5,
+          "reversed": false
+        },
+        "el_sw_arm": {
+          "channel": 6,
+          "reversed": false
+        },
+        "el_knob_mv8p8ygt": {
+          "channel": 8,
+          "reversed": false
+        }
+      },
+      "trims": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "rates": {
+        "1": 90,
+        "2": 90,
+        "3": 100,
+        "4": 85
+      },
+      "expo": {
+        "1": 25,
+        "2": 25,
+        "3": 0,
+        "4": 20
+      },
+      "endpoints": {
+        "1": {
+          "min": -100,
+          "max": 100
+        },
+        "2": {
+          "min": -100,
+          "max": 100
+        },
+        "3": {
+          "min": -100,
+          "max": 100
+        },
+        "4": {
+          "min": -100,
+          "max": 100
+        },
+        "5": {
+          "min": -100,
+          "max": 100
+        },
+        "6": {
+          "min": -100,
+          "max": 100
+        }
+      },
+      "mixing": [],
+      "failsafe": {
+        "1": 0,
+        "2": 0,
+        "3": -100,
+        "4": 0,
+        "5": -100,
+        "6": -100
+      },
+      "bg_style": ""
+    }
+  }
+}

@@ -1,532 +1,991 @@
-let profilesData = {};
-let currentProfileId = '';
-const simMode = window.location.pathname.includes('Flight') ? 'flight' : 'driving';
+/* ═══════════════════════════════════════════════════════════════════════
+   VFORCE RC BASE STATION — PC DASHBOARD CONTROLLER
+   Handles Model Configuration, Layout Builder, Live 16-Channel Telemetry,
+   Expo/Curves Visualizer, Mixing, and WebSocket Link.
+   ═══════════════════════════════════════════════════════════════════════ */
 
-const xboxOutputs = [
-  "LEFT_STICK_X", "LEFT_STICK_Y", "RIGHT_STICK_X", "RIGHT_STICK_Y",
-  "LEFT_TRIGGER", "RIGHT_TRIGGER",
-  "BUTTON_A", "BUTTON_B", "BUTTON_X", "BUTTON_Y",
-  "BUTTON_LB", "BUTTON_RB", "BUTTON_BACK", "BUTTON_START",
-  "BUTTON_L3", "BUTTON_R3",
-  "DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT"
-];
+let modelsData = { active_model: "default_car", models: {} };
+let currentModelId = "";
+let selectedElementId = null;
+let activeCurveChannel = 1;
+let ws = null;
+let wsPingStart = 0;
 
-let packageData = { steering: [], pedals: [], background: [] };
+// Default initial channel telemetry
+let liveChannels = {};
+let liveChannelsUs = {};
+for (let i = 1; i <= 16; i++) {
+  liveChannels[String(i)] = 0.0;
+  liveChannelsUs[String(i)] = 1500;
+}
 
+// ── DOM Initialization ───────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initTabs();
+  initCurveCanvas();
+  initEvents();
+  loadData();
+  connectWebSocket();
+});
+
+// ── Tab Navigation ───────────────────────────────────────────────────
+function initTabs() {
+  const tabs = document.querySelectorAll('.tab-btn');
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      btn.classList.add('active');
+      const targetId = btn.getAttribute('data-tab');
+      const targetContent = document.getElementById(targetId);
+      if (targetContent) {
+        targetContent.classList.add('active');
+      }
+
+      if (targetId === 'tab-curves') {
+        drawExpoCurve();
+      }
+    });
+  });
+}
+
+// ── Data Fetching ────────────────────────────────────────────────────
 async function loadData() {
   try {
+    // Network Info
     const netRes = await fetch('/api/network');
-    const netData = await netRes.json();
-    const proto = netData.protocol || 'https';
-    document.getElementById('connect-url').innerText = `${proto}://${netData.ip}:${netData.port}/mobile`;
-  } catch (e) {
-    document.getElementById('connect-url').innerText = `https://${window.location.host}/mobile`;
-  }
-  
-  // Fetch packages
-  try {
-    const pkgRes = await fetch('/api/packages');
-    packageData = await pkgRes.json();
-    populatePackageDropdowns();
-  } catch (e) {
-    console.error("Failed to load packages", e);
-  }
+    const net = await netRes.json();
+    const phoneUrl = `${net.protocol}://${net.ip}:${net.port}/mobile`;
+    const urlDisplay = document.getElementById('phone-url-display');
+    if (urlDisplay) urlDisplay.innerText = phoneUrl;
 
-  const res = await fetch('/api/profiles');
-  profilesData = await res.json();
-  currentProfileId = profilesData.active_profile;
-  renderProfileSelect();
-  loadProfile(currentProfileId);
+    // Output Config
+    const outRes = await fetch('/api/output');
+    const outCfg = await outRes.json();
+    populateOutputConfig(outCfg);
+
+    // Models
+    const mRes = await fetch('/api/models');
+    modelsData = await mRes.json();
+    currentModelId = modelsData.active_model || Object.keys(modelsData.models)[0];
+
+    renderModelSelect();
+    loadModel(currentModelId);
+    buildMonitorGrid();
+    buildCurvePills();
+  } catch (err) {
+    console.error("Failed to load initial data", err);
+  }
 }
 
-function populatePackageDropdowns() {
-  const wheelSel = document.getElementById('prof-wheel-style');
-  wheelSel.innerHTML = '<option value="">Default Steering</option>';
-  packageData.steering.forEach(f => {
-    wheelSel.innerHTML += `<option value="${f}">${f}</option>`;
-  });
+function populateOutputConfig(cfg) {
+  const enabled = document.getElementById('out-udp-enabled');
+  const ip = document.getElementById('out-target-ip');
+  const port = document.getElementById('out-target-port');
+  const proto = document.getElementById('out-protocol');
 
-  const pedalSel = document.getElementById('prof-pedal-style');
-  pedalSel.innerHTML = '<option value="">Default Pedals</option>';
-  packageData.pedals.forEach(f => {
-    pedalSel.innerHTML += `<option value="${f}">${f}</option>`;
-  });
-
-  const bgSel = document.getElementById('prof-bg-style');
-  bgSel.innerHTML = '<option value="">None (Solid Color)</option>';
-  packageData.background.forEach(f => {
-    bgSel.innerHTML += `<option value="${f}">${f}</option>`;
-  });
+  if (enabled) enabled.checked = !!cfg.enabled;
+  if (ip) ip.value = cfg.target_ip || "192.168.4.1";
+  if (port) port.value = cfg.target_port || 8888;
+  if (proto) proto.value = cfg.protocol || "udp_raw_us";
 }
 
-function renderProfileSelect() {
-  const select = document.getElementById('profile-select');
-  select.innerHTML = '';
-  
-  // Set up elements dropdown based on mode
-  const elSelect = document.getElementById('element-type');
-  if (elSelect) {
-    if (simMode === 'flight') {
-      elSelect.innerHTML = `
-        <option value="yoke">Yoke</option>
-        <option value="rudder">Rudder</option>
-        <option value="throttle-1">Throttle 1</option>
-        <option value="throttle-2">Throttle 2</option>
-        <option value="throttle-3">Throttle 3</option>
-        <option value="throttle-4">Throttle 4</option>
-        <option value="button-A">Button A</option>
-        <option value="button-B">Button B</option>
-        <option value="button-X">Button X</option>
-        <option value="button-Y">Button Y</option>
-      `;
-    } else {
-      elSelect.innerHTML = `
-        <option value="steering-wheel">Steering Wheel</option>
-        <option value="joystick">Analogue Joystick</option>
-        <option value="pedal-gas">Gas Pedal</option>
-        <option value="pedal-brake">Brake Pedal</option>
-        <option value="pedal-clutch">Clutch Pedal</option>
-        <option value="button-A">Button A</option>
-        <option value="button-B">Button B</option>
-        <option value="button-X">Button X</option>
-        <option value="button-Y">Button Y</option>
-      `;
-    }
+// ── WebSocket Connection & Channel Streaming ─────────────────────────
+function connectWebSocket() {
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = `${proto}//${window.location.host}/ws`;
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    console.log("[WS] Connected to base station.");
+    wsPingStart = Date.now();
+    ws.send(JSON.stringify({ type: "role", role: "dashboard" }));
+    ws.send(JSON.stringify({ type: "ping" }));
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === "channels") {
+        updateMonitorBars(msg.channels, msg.channels_us);
+      } else if (msg.type === "init") {
+        updateMonitorBars(msg.channels, msg.channels_us);
+      } else if (msg.type === "pong") {
+        const latency = Date.now() - wsPingStart;
+        const latencyEl = document.getElementById('ws-latency');
+        if (latencyEl) latencyEl.innerText = `${latency} ms`;
+        setTimeout(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            wsPingStart = Date.now();
+            ws.send(JSON.stringify({ type: "ping" }));
+          }
+        }, 3000);
+      }
+    } catch (e) {}
+  };
+
+  ws.onclose = () => {
+    console.log("[WS] Disconnected. Reconnecting in 2s...");
+    setTimeout(connectWebSocket, 2000);
+  };
+}
+
+// ── Model Selection & Switching ──────────────────────────────────────
+function getActiveModel() {
+  if (!modelsData.models[currentModelId]) {
+    const keys = Object.keys(modelsData.models);
+    if (keys.length > 0) currentModelId = keys[0];
   }
+  return modelsData.models[currentModelId] || null;
+}
 
-  // Find first valid profile if current is invalid for this mode
-  let validProfileIds = Object.keys(profilesData.profiles).filter(id => {
-    let mode = profilesData.profiles[id].mode;
-    if (!mode) mode = 'driving'; // default legacy profiles to driving
-    return mode === simMode;
-  });
-
-  if (validProfileIds.length === 0) {
-    // Create a default if none exists for this mode
-    const newId = 'prof_' + Date.now();
-    profilesData.profiles[newId] = {
-      name: 'Default ' + (simMode === 'flight' ? 'Flight' : 'Racing'),
-      mode: simMode,
-      max_steering_angle: 180,
-      elements: [],
-      mappings: {}
-    };
-    validProfileIds.push(newId);
-  }
-
-  if (!validProfileIds.includes(currentProfileId)) {
-    currentProfileId = validProfileIds[0];
-    profilesData.active_profile = currentProfileId;
-  }
-
-  validProfileIds.forEach(id => {
+function renderModelSelect() {
+  const sel = document.getElementById('model-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+  Object.keys(modelsData.models).forEach(id => {
+    const m = modelsData.models[id];
     const opt = document.createElement('option');
     opt.value = id;
-    opt.innerText = profilesData.profiles[id].name;
-    if (id === currentProfileId) opt.selected = true;
-    select.appendChild(opt);
+    opt.textContent = m.name || id;
+    if (id === currentModelId) opt.selected = true;
+    sel.appendChild(opt);
   });
 }
 
-document.getElementById('profile-select').onchange = (e) => {
-  currentProfileId = e.target.value;
-  profilesData.active_profile = currentProfileId;
-  loadProfile(currentProfileId);
-};
+function loadModel(modelId) {
+  currentModelId = modelId;
+  modelsData.active_model = modelId;
+  const model = getActiveModel();
+  if (!model) return;
 
-document.getElementById('btn-new-profile').onclick = () => {
-  const name = prompt("Enter profile name:");
-  if (name) {
-    const id = 'prof_' + Date.now();
-    profilesData.profiles[id] = { 
-      name: name, 
-      mode: simMode,
-      max_steering_angle: 180,
-      elements: [],
-      mappings: {}
-    };
-    currentProfileId = id;
-    profilesData.active_profile = currentProfileId;
-    renderProfileSelect();
-    loadProfile(id);
-  }
-};
+  // Initialize missing structures
+  model.elements = model.elements || [];
+  model.channel_map = model.channel_map || {};
+  model.trims = model.trims || {};
+  model.rates = model.rates || {};
+  model.expo = model.expo || {};
+  model.endpoints = model.endpoints || {};
+  model.mixing = model.mixing || [];
+  model.failsafe = model.failsafe || {};
 
-function loadProfile(id) {
-  // Save current profile fields back before switching — but only if the DOM
-  // has already been populated (prevents blank name overwriting on first load).
-  const nameInput = document.getElementById('prof-name');
-  if (nameInput.value.trim() !== '') {
-    const p = profilesData.profiles[currentProfileId];
-    if (p) {
-      p.name = nameInput.value;
-      p.max_steering_angle = parseInt(document.getElementById('prof-steering-angle').value) || 180;
-      p.return_speed = parseInt(document.getElementById('prof-return-speed').value) || 5;
-      p.wheel_style = document.getElementById('prof-wheel-style').value;
-      p.pedal_style = document.getElementById('prof-pedal-style').value;
-      p.bg_style = document.getElementById('prof-bg-style').value;
-      p.tilt_enabled = document.getElementById('prof-tilt-enabled')?.checked || false;
-      p.tilt_sensitivity = parseFloat(document.getElementById('prof-tilt-sensitivity')?.value) || 1.5;
-      p.tilt_inverted = document.getElementById('prof-tilt-inverted')?.checked || false;
+  // Update Model Meta
+  const nameInput = document.getElementById('model-name-input');
+  const chCount = document.getElementById('model-channels-count');
+  if (nameInput) nameInput.value = model.name || "";
+  if (chCount) chCount.value = String(model.channels || 16);
+
+  selectedElementId = null;
+  renderCanvasElements();
+  renderPropsPanel();
+  renderMappingsTable();
+  loadCurveChannel(activeCurveChannel);
+  renderMixesList();
+  renderEndpointsTable();
+}
+
+// ── Visual Layout Designer (Phone Canvas) ────────────────────────────
+function renderCanvasElements() {
+  const canvas = document.getElementById('editor-canvas');
+  if (!canvas) return;
+  canvas.innerHTML = '';
+
+  const model = getActiveModel();
+  if (!model) return;
+
+  model.elements.forEach(el => {
+    const dom = document.createElement('div');
+    dom.className = `canvas-el ${el.type}`;
+    if (el.id === selectedElementId) dom.classList.add('selected');
+    dom.dataset.id = el.id;
+
+    dom.style.left = `${el.x}%`;
+    dom.style.top = `${el.y}%`;
+    dom.style.width = `${el.width}%`;
+    dom.style.height = `${el.height}%`;
+
+    // Render stylized visual representations
+    let visualHtml = '';
+    if (el.type === 'stick') {
+      visualHtml = `<div class="stick-gimbal"><div class="stick-nub"></div></div>`;
+    } else if (el.type === 'slider') {
+      visualHtml = `<div class="slider-track"><div class="slider-handle"></div></div>`;
+    } else if (el.type === 'switch-2pos' || el.type === 'switch-3pos') {
+      visualHtml = `<div class="switch-lever"><div class="switch-bat"></div></div>`;
+    } else if (el.type === 'button') {
+      visualHtml = `<div class="btn-cap"></div>`;
+    } else if (el.type === 'knob') {
+      visualHtml = `<div class="knob-ring"><div class="knob-dot"></div></div>`;
     }
-  }
-  
-  // Extract elements
-  const pLoad = profilesData.profiles[id];
-  if (!pLoad) return;
-  document.getElementById('prof-name').value = pLoad.name;
-  document.getElementById('prof-steering-angle').value = pLoad.max_steering_angle || 180;
-  let rs = pLoad.return_speed !== undefined ? pLoad.return_speed : 5;
-  document.getElementById('prof-return-speed').value = rs;
-  document.getElementById('prof-return-val').innerText = rs;
-  document.getElementById('prof-wheel-style').value = pLoad.wheel_style || '';
-  document.getElementById('prof-pedal-style').value = pLoad.pedal_style || '';
-  document.getElementById('prof-bg-style').value = pLoad.bg_style || '';
-  const tiltEl = document.getElementById('prof-tilt-enabled');
-  if (tiltEl) tiltEl.checked = pLoad.tilt_enabled || false;
-  const tiltSensEl = document.getElementById('prof-tilt-sensitivity');
-  if (tiltSensEl) {
-    tiltSensEl.value = pLoad.tilt_sensitivity !== undefined ? pLoad.tilt_sensitivity : 1.5;
-    const tiltSensVal = document.getElementById('prof-tilt-sensitivity-val');
-    if (tiltSensVal) tiltSensVal.innerText = tiltSensEl.value + 'x';
-  }
-  const tiltInvEl = document.getElementById('prof-tilt-inverted');
-  if (tiltInvEl) tiltInvEl.checked = pLoad.tilt_inverted || false;
-  
-  renderCanvas(pLoad.elements);
-  renderMappings(pLoad);
-}
 
-document.getElementById('prof-name').onchange = (e) => {
-  profilesData.profiles[currentProfileId].name = e.target.value;
-  renderProfileSelect();
-};
-
-document.getElementById('prof-steering-angle').onchange = (e) => {
-  profilesData.profiles[currentProfileId].max_steering_angle = parseInt(e.target.value) || 180;
-};
-
-document.getElementById('prof-return-speed').oninput = (e) => {
-  let val = parseInt(e.target.value) || 0;
-  document.getElementById('prof-return-val').innerText = val;
-  profilesData.profiles[currentProfileId].return_speed = val;
-};
-
-// Tilt steering handlers
-document.getElementById('prof-tilt-enabled')?.addEventListener('change', (e) => {
-  profilesData.profiles[currentProfileId].tilt_enabled = e.target.checked;
-  const sensRow = document.getElementById('tilt-sensitivity-row');
-  if (sensRow) sensRow.style.display = e.target.checked ? '' : 'none';
-});
-
-document.getElementById('prof-tilt-sensitivity')?.addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  profilesData.profiles[currentProfileId].tilt_sensitivity = val;
-  const tiltSensVal = document.getElementById('prof-tilt-sensitivity-val');
-  if (tiltSensVal) tiltSensVal.innerText = val.toFixed(1) + 'x';
-});
-
-document.getElementById('prof-tilt-inverted')?.addEventListener('change', (e) => {
-  profilesData.profiles[currentProfileId].tilt_inverted = e.target.checked;
-});
-
-// steering mode handler removed
-
-document.getElementById('prof-wheel-style').onchange = (e) => {
-  profilesData.profiles[currentProfileId].wheel_style = e.target.value;
-  renderCanvas(profilesData.profiles[currentProfileId].elements);
-};
-
-document.getElementById('prof-pedal-style').onchange = (e) => {
-  profilesData.profiles[currentProfileId].pedal_style = e.target.value;
-  renderCanvas(profilesData.profiles[currentProfileId].elements);
-};
-
-document.getElementById('prof-bg-style').onchange = (e) => {
-  profilesData.profiles[currentProfileId].bg_style = e.target.value;
-};
-
-// Canvas Logic
-const editorCanvas = document.getElementById('editor-canvas');
-let draggedElement = null;
-let resizedElement = null;
-let startX, startY, startW, startH, startLeft, startTop;
-
-function renderCanvas(elements) {
-  editorCanvas.innerHTML = `
-    <!-- Permanent UI overlay guides -->
-    <div style="position: absolute; top: 20px; right: 20px; width: 44px; height: 44px; border-radius: 50%; border: 2px dashed rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.3); font-size: 1.2rem; pointer-events: none; z-index: 0;">✕</div>
-    <div style="position: absolute; top: 20px; left: 20px; padding: 10px 16px; border-radius: 20px; border: 2px dashed rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: rgba(255,255,255,0.3); font-weight: bold; pointer-events: none; z-index: 0;">⟳ Recenter</div>
-    <div style="position: absolute; top: 20px; left: 140px; padding: 10px 20px; border-radius: 20px; border: 2px dashed rgba(255,255,255,0.3); background: rgba(0,0,0,0.2); color: rgba(255,255,255,0.3); font-weight: bold; pointer-events: none; z-index: 0;">📱 Tilt</div>
-    <div style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; color: rgba(255,255,255,0.3); font-weight: 800; font-size: 2rem; pointer-events: none; z-index: 0;">0°<span style="font-size: 1rem; font-weight: 400;">0.00 rot</span></div>
-  `;
-  elements.forEach(el => {
-    createEditorElement(el);
-  });
-}
-
-function createEditorElement(el) {
-  const div = document.createElement('div');
-  div.className = 'control-item';
-  div.id = el.id;
-  div.style.left = el.x + '%';
-  div.style.top = el.y + '%';
-  div.style.width = el.width + '%';
-  div.style.height = el.height + '%';
-  div.dataset.type = el.type;
-
-  if (el.type === 'joystick') {
-    div.innerHTML = `
-      <div class="joystick-base" style="width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--primary); position: relative; box-sizing: border-box; pointer-events: none;">
-        <div class="joystick-thumb" style="width: 40%; height: 40%; background: var(--primary); border-radius: 50%; position: absolute; top: 30%; left: 30%; pointer-events: none;"></div>
-      </div>
+    dom.innerHTML = `
+      <span class="canvas-el-label">${el.text || el.type}</span>
+      ${visualHtml}
     `;
-  } else if (el.type === 'yoke') {
-    div.innerHTML = `
-      <div class="yoke-base" style="width: 100%; height: 100%; border-radius: 10px; border: 2px solid var(--primary); position: relative; box-sizing: border-box; background: rgba(0, 0, 0, 0.4); pointer-events: none;">
-        <div class="yoke-thumb" style="width: 30%; height: 30%; background: var(--primary); border-radius: 5px; position: absolute; top: 35%; left: 35%; pointer-events: none; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8em;">YOKE</div>
-      </div>
-    `;
-  } else if (el.type === 'rudder') {
-    div.innerHTML = `
-      <div class="rudder-base" style="width: 100%; height: 100%; border-radius: 5px; border: 2px solid var(--primary); position: relative; box-sizing: border-box; background: rgba(0, 0, 0, 0.4); pointer-events: none;">
-        <div class="rudder-thumb" style="width: 20%; height: 100%; background: var(--primary); border-radius: 3px; position: absolute; top: 0; left: 40%; pointer-events: none;"></div>
-      </div>
-    `;
-  } else if (el.type.startsWith('throttle-')) {
-    div.innerHTML = `
-      <div class="throttle-base" style="width: 100%; height: 100%; border-radius: 5px; border: 2px solid var(--primary); position: relative; box-sizing: border-box; background: rgba(0, 0, 0, 0.4); pointer-events: none;">
-        <div class="throttle-thumb" style="width: 100%; height: 20%; background: var(--primary); border-radius: 3px; position: absolute; bottom: 0; left: 0; pointer-events: none;"></div>
-      </div>
-    `;
-  } else if (el.type === 'steering-wheel') {
-    const wheelImg = profilesData.profiles[currentProfileId]?.wheel_style;
-    const imgUrl = wheelImg ? `/packages/Steering/${wheelImg}` : '/static/scania_wheel.png';
-    div.innerHTML = `
-      <img src="${imgUrl}" style="width: 100%; height: 100%; object-fit: contain; pointer-events: none;">
-    `;
-  } else if (el.type.startsWith('pedal-')) {
-    const pedalImg = profilesData.profiles[currentProfileId]?.pedal_style;
-    const imgUrl = pedalImg ? `/packages/Pedals/${pedalImg}` : '/static/pedal_plate.png';
-    div.innerHTML = `
-      <div style="position: absolute; top: 10%; bottom: 10%; left: 50%; transform: translateX(-50%); width: 6px; background: rgba(0,0,0,0.5); border-radius: 3px; z-index: 1;"></div>
-      <div style="position: absolute; bottom: 0%; left: 50%; transform: translateX(-50%); width: 70%; height: 40%; background-image: url('${imgUrl}'); background-size: contain; background-repeat: no-repeat; background-position: center bottom; z-index: 3;"></div>
-      <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; text-shadow: 0 2px 4px black; z-index: 4;">${el.text}</span>
-    `;
-  } else {
-    div.innerText = el.text || el.type.split('-')[1]?.toUpperCase() || 'BTN';
-  }
 
-  const handle = document.createElement('div');
-  handle.className = 'resize-handle';
-  div.appendChild(handle);
-
-  const delBtn = document.createElement('button');
-  delBtn.className = 'delete-btn';
-  delBtn.innerText = '×';
-  delBtn.onclick = (e) => {
-    e.stopPropagation();
-    div.remove();
-    updateProfileElements();
-  };
-  div.appendChild(delBtn);
-
-  div.addEventListener('mousedown', (e) => {
-    document.querySelectorAll('.control-item').forEach(i => i.classList.remove('selected'));
-    div.classList.add('selected');
-    
-    if (e.target === handle) {
-      resizedElement = div;
-      startW = parseFloat(div.style.width);
-      startH = parseFloat(div.style.height);
-    } else if (e.target !== delBtn) {
-      draggedElement = div;
-      startLeft = parseFloat(div.style.left);
-      startTop = parseFloat(div.style.top);
-    }
-    startX = e.clientX;
-    startY = e.clientY;
-    e.stopPropagation();
-  });
-
-  editorCanvas.appendChild(div);
-}
-
-document.addEventListener('mousemove', (e) => {
-  if (draggedElement) {
-    const rect = editorCanvas.getBoundingClientRect();
-    const dx = (e.clientX - startX) / rect.width * 100;
-    const dy = (e.clientY - startY) / rect.height * 100;
-    draggedElement.style.left = Math.max(0, Math.min(100 - parseFloat(draggedElement.style.width), startLeft + dx)) + '%';
-    draggedElement.style.top = Math.max(0, Math.min(100 - parseFloat(draggedElement.style.height), startTop + dy)) + '%';
-  } else if (resizedElement) {
-    const rect = editorCanvas.getBoundingClientRect();
-    const dx = (e.clientX - startX) / rect.width * 100;
-    const dy = (e.clientY - startY) / rect.height * 100;
-    resizedElement.style.width = Math.max(5, startW + dx) + '%';
-    resizedElement.style.height = Math.max(5, startH + dy) + '%';
-  }
-});
-
-document.addEventListener('mouseup', () => {
-  if (draggedElement || resizedElement) {
-    updateProfileElements();
-  }
-  draggedElement = null;
-  resizedElement = null;
-});
-
-function updateProfileElements() {
-  const elements = [];
-  document.querySelectorAll('#editor-canvas .control-item').forEach(el => {
-    elements.push({
-      id: el.id,
-      type: el.dataset.type,
-      x: parseFloat(el.style.left),
-      y: parseFloat(el.style.top),
-      width: parseFloat(el.style.width),
-      height: parseFloat(el.style.height),
-      text: el.childNodes[0].nodeValue
+    // Click to select
+    dom.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      selectElement(el.id);
+      startDragElement(e, el, dom, canvas);
     });
+
+    canvas.appendChild(dom);
   });
-  profilesData.profiles[currentProfileId].elements = elements;
-  
-  // Clean up mappings for deleted elements, add for new ones
-  const p = profilesData.profiles[currentProfileId];
-  if (!p.mappings) p.mappings = {};
-  
-  const currentIds = elements.map(e => e.id);
-  Object.keys(p.mappings).forEach(id => {
-    const baseId = id.replace('_x', '').replace('_y', '');
-    if (!currentIds.includes(baseId)) delete p.mappings[id];
-  });
-  
-  renderMappings(p);
+
+  // Clicking empty canvas deselects
+  canvas.onmousedown = (e) => {
+    if (e.target === canvas) selectElement(null);
+  };
 }
 
-document.getElementById('btn-add-element').onclick = () => {
-  const type = document.getElementById('element-type').value;
-  let text = type.split('-')[1]?.toUpperCase() || 'BTN';
-  if (type.startsWith('pedal')) text = text.substring(0, 3);
-  if (type === 'joystick') text = 'JOY';
-  if (type === 'steering-wheel') text = 'WHEEL';
-  if (type === 'yoke') text = 'YOKE';
-  if (type === 'rudder') text = 'RUDDER';
-  if (type.startsWith('throttle-')) text = 'THR' + type.split('-')[1];
-  
-  const isSquare = type === 'steering-wheel' || type === 'joystick' || type === 'yoke';
-  const isWide = type === 'rudder';
-  const isTall = type.startsWith('pedal') || type.startsWith('throttle-');
-  
-  const el = {
-    id: 'el_' + Date.now(),
-    type: type,
-    x: 45, y: 40, width: isSquare ? 30 : (isWide ? 40 : 10), height: isTall ? 40 : (isSquare ? 30 : 20),
-    text: text
-  };
-  createEditorElement(el);
-  updateProfileElements();
-};
-
-function renderMappings(profile) {
-  const list = document.getElementById('mapping-list');
-  list.innerHTML = '';
-  
-  const createMappingRow = (elId, labelText) => {
-    const row = document.createElement('div');
-    row.className = 'mapping-row';
-    
-    const label = document.createElement('span');
-    label.innerText = labelText;
-    
-    const arrow = document.createElement('i');
-    arrow.innerText = '→';
-    
-    const select = document.createElement('select');
-    const defOpt = document.createElement('option');
-    defOpt.value = '';
-    defOpt.innerText = '-- Unmapped --';
-    select.appendChild(defOpt);
-    
-    xboxOutputs.forEach(out => {
-      const opt = document.createElement('option');
-      opt.value = out;
-      opt.innerText = out;
-      select.appendChild(opt);
+function selectElement(id) {
+  selectedElementId = id;
+  const canvas = document.getElementById('editor-canvas');
+  if (canvas) {
+    canvas.querySelectorAll('.canvas-el').forEach(el => {
+      el.classList.toggle('selected', el.dataset.id === id);
     });
-    
-    if (profile.mappings[elId] && profile.mappings[elId].output) {
-      select.value = profile.mappings[elId].output;
-    }
-    
-    select.onchange = (e) => {
-      if (!profile.mappings[elId]) profile.mappings[elId] = {};
-      profile.mappings[elId].output = e.target.value;
-    };
-    
-    row.appendChild(label);
-    row.appendChild(arrow);
-    row.appendChild(select);
-    list.appendChild(row);
-  };
+  }
+  renderPropsPanel();
+}
 
-  profile.elements.forEach(el => {
-    const labelText = el.text || el.type;
-    if (el.type === 'joystick' || el.type === 'yoke') {
-      createMappingRow(el.id + '_x', labelText + ' (X-Axis)');
-      createMappingRow(el.id + '_y', labelText + ' (Y-Axis)');
+function renderPropsPanel() {
+  const form = document.getElementById('props-form');
+  const empty = document.getElementById('props-empty-hint');
+  const delBtn = document.getElementById('btn-del-element');
+  const model = getActiveModel();
+
+  const el = model ? model.elements.find(e => e.id === selectedElementId) : null;
+
+  if (!el) {
+    if (form) form.style.display = 'none';
+    if (empty) empty.style.display = 'block';
+    if (delBtn) delBtn.style.display = 'none';
+    return;
+  }
+
+  if (form) form.style.display = 'flex';
+  if (empty) empty.style.display = 'none';
+  if (delBtn) delBtn.style.display = 'inline-flex';
+
+  document.getElementById('prop-label').value = el.text || "";
+  document.getElementById('prop-w').value = Math.round(el.width);
+  document.getElementById('prop-h').value = Math.round(el.height);
+  document.getElementById('prop-x').value = Math.round(el.x);
+  document.getElementById('prop-y').value = Math.round(el.y);
+
+  // Stick return-to-center / throttle mode row
+  const stickHoldRow = document.getElementById('row-prop-stick-hold');
+  const stickHoldSelect = document.getElementById('prop-stick-hold');
+  if (stickHoldRow && stickHoldSelect) {
+    if (el.type === 'stick') {
+      stickHoldRow.style.display = 'flex';
+      stickHoldSelect.value = el.hold_axis || 'none';
     } else {
-      createMappingRow(el.id, labelText);
+      stickHoldRow.style.display = 'none';
+    }
+  }
+}
+
+function startDragElement(e, el, dom, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const startMouseX = e.clientX;
+  const startMouseY = e.clientY;
+  const startX = el.x;
+  const startY = el.y;
+
+  function onMouseMove(ev) {
+    const deltaX = ((ev.clientX - startMouseX) / rect.width) * 100;
+    const deltaY = ((ev.clientY - startMouseY) / rect.height) * 100;
+
+    let newX = Math.max(0, Math.min(100 - el.width, startX + deltaX));
+    let newY = Math.max(0, Math.min(100 - el.height, startY + deltaY));
+
+    el.x = Math.round(newX);
+    el.y = Math.round(newY);
+
+    dom.style.left = `${el.x}%`;
+    dom.style.top = `${el.y}%`;
+
+    const propX = document.getElementById('prop-x');
+    const propY = document.getElementById('prop-y');
+    if (propX) propX.value = el.x;
+    if (propY) propY.value = el.y;
+  }
+
+  function onMouseUp() {
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+  }
+
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+}
+
+// ── Channel Mappings Table ───────────────────────────────────────────
+function renderMappingsTable() {
+  const tbody = document.getElementById('mappings-tbody');
+  const countBadge = document.getElementById('mapping-count');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const model = getActiveModel();
+  if (!model) return;
+
+  const map = model.channel_map;
+  let count = 0;
+
+  model.elements.forEach(el => {
+    let inputs = [];
+    if (el.type === 'stick') {
+      inputs = [
+        { key: `${el.id}_x`, label: `${el.text || 'Stick'} (X-Axis)` },
+        { key: `${el.id}_y`, label: `${el.text || 'Stick'} (Y-Axis)` }
+      ];
+    } else {
+      inputs = [{ key: el.id, label: `${el.text || el.type}` }];
+    }
+
+    inputs.forEach(inp => {
+      count++;
+      const currentMapping = map[inp.key] || { channel: 1, reversed: false };
+      const tr = document.createElement('tr');
+
+      // Build CH options
+      let chOptions = '';
+      for (let ch = 1; ch <= 16; ch++) {
+        chOptions += `<option value="${ch}" ${currentMapping.channel === ch ? 'selected' : ''}>CH ${ch}</option>`;
+      }
+
+      tr.innerHTML = `
+        <td style="font-weight:600;">${inp.label}</td>
+        <td>
+          <select data-key="${inp.key}" class="map-ch-select">
+            ${chOptions}
+          </select>
+        </td>
+        <td>
+          <input type="checkbox" data-key="${inp.key}" class="map-inv-check clay-toggle" ${currentMapping.reversed ? 'checked' : ''}>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+  });
+
+  if (countBadge) countBadge.innerText = `${count} Mapped`;
+
+  // Bind change events
+  tbody.querySelectorAll('.map-ch-select').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+      const k = e.target.dataset.key;
+      map[k] = map[k] || {};
+      map[k].channel = parseInt(e.target.value, 10);
+    });
+  });
+
+  tbody.querySelectorAll('.map-inv-check').forEach(chk => {
+    chk.addEventListener('change', (e) => {
+      const k = e.target.dataset.key;
+      map[k] = map[k] || {};
+      map[k].reversed = e.target.checked;
+    });
+  });
+}
+
+// ── 16-Channel Live Monitor ──────────────────────────────────────────
+function buildMonitorGrid() {
+  const grid = document.getElementById('channel-monitor-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  for (let ch = 1; ch <= 16; ch++) {
+    const card = document.createElement('div');
+    card.className = 'ch-card';
+    card.id = `ch-card-${ch}`;
+
+    card.innerHTML = `
+      <div class="ch-card-header">
+        <div class="ch-title">
+          <span class="ch-badge">CH ${ch}</span>
+          <span class="ch-name" id="ch-name-${ch}">Channel ${ch}</span>
+        </div>
+        <div class="ch-values">
+          <span class="ch-pct" id="ch-pct-${ch}">0%</span>
+          <span class="ch-us" id="ch-us-${ch}">1500 µs</span>
+        </div>
+      </div>
+      <div class="ch-bar-track">
+        <div class="ch-center-mark"></div>
+        <div class="ch-bar-fill" id="ch-bar-${ch}" style="left: 50%; width: 0%;"></div>
+      </div>
+    `;
+
+    grid.appendChild(card);
+  }
+}
+
+function updateMonitorBars(channels, channelsUs) {
+  if (!channels) return;
+
+  for (let ch = 1; ch <= 16; ch++) {
+    const key = String(ch);
+    const val = channels[key] !== undefined ? channels[key] : 0.0;
+    const us = channelsUs ? channelsUs[ch - 1] : Math.round(1500 + val * 500);
+
+    const pctEl = document.getElementById(`ch-pct-${ch}`);
+    const usEl = document.getElementById(`ch-us-${ch}`);
+    const barEl = document.getElementById(`ch-bar-${ch}`);
+
+    if (pctEl) pctEl.innerText = `${Math.round(val * 100)}%`;
+    if (usEl) usEl.innerText = `${us} µs`;
+
+    if (barEl) {
+      if (val >= 0) {
+        barEl.style.left = '50%';
+        barEl.style.width = `${Math.min(50, val * 50)}%`;
+      } else {
+        const w = Math.min(50, Math.abs(val) * 50);
+        barEl.style.left = `${50 - w}%`;
+        barEl.style.width = `${w}%`;
+      }
+    }
+  }
+}
+
+// ── Trims & Exponential Curves Visualizer ────────────────────────────
+function buildCurvePills() {
+  const container = document.getElementById('curves-channel-pills');
+  if (!container) return;
+  container.innerHTML = '';
+
+  for (let ch = 1; ch <= 16; ch++) {
+    const btn = document.createElement('button');
+    btn.className = `ch-pill-btn ${ch === activeCurveChannel ? 'active' : ''}`;
+    btn.innerText = `CH ${ch}`;
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.ch-pill-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadCurveChannel(ch);
+    });
+    container.appendChild(btn);
+  }
+}
+
+function loadCurveChannel(ch) {
+  activeCurveChannel = ch;
+  const title = document.getElementById('active-curve-channel-title');
+  if (title) title.innerText = `CH ${ch} Configuration`;
+
+  const model = getActiveModel();
+  if (!model) return;
+
+  const k = String(ch);
+  const trim = model.trims[k] || 0;
+  const rate = model.rates[k] !== undefined ? model.rates[k] : 100;
+  const expo = model.expo[k] || 0;
+
+  document.getElementById('slider-trim').value = trim;
+  document.getElementById('val-trim').innerText = `${trim}%`;
+
+  document.getElementById('slider-rate').value = rate;
+  document.getElementById('val-rate').innerText = `${rate}%`;
+
+  document.getElementById('slider-expo').value = expo;
+  document.getElementById('val-expo').innerText = `${expo}%`;
+
+  drawExpoCurve();
+}
+
+function initCurveCanvas() {
+  const canvas = document.getElementById('curve-canvas');
+  if (!canvas) return;
+  drawExpoCurve();
+}
+
+function drawExpoCurve() {
+  const canvas = document.getElementById('curve-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  const model = getActiveModel();
+  const k = String(activeCurveChannel);
+  const expoPct = model && model.expo[k] !== undefined ? model.expo[k] : 0;
+  const ratePct = model && model.rates[k] !== undefined ? model.rates[k] : 100;
+  const trimPct = model && model.trims[k] !== undefined ? model.trims[k] : 0;
+
+  const cx = w / 2;
+  const cy = h / 2;
+  const scaleX = (w - 40) / 2;
+  const scaleY = (h - 40) / 2;
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+
+  // Center axes
+  ctx.beginPath();
+  ctx.moveTo(20, cy);
+  ctx.lineTo(w - 20, cy);
+  ctx.moveTo(cx, 20);
+  ctx.lineTo(cx, h - 20);
+  ctx.stroke();
+
+  // Linear Reference
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.setLineDash([2, 4]);
+  ctx.beginPath();
+  ctx.moveTo(cx - scaleX, cy + scaleY);
+  ctx.lineTo(cx + scaleX, cy - scaleY);
+  ctx.stroke();
+
+  ctx.setLineDash([]);
+
+  // Active Exponential Curve
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+
+  const e = expoPct / 100.0;
+  const r = ratePct / 100.0;
+  const t = trimPct / 100.0;
+
+  for (let px = -scaleX; px <= scaleX; px += 2) {
+    const x = px / scaleX; // -1 to +1
+    // Standard expo formula: (1 - e) * x + e * x^3
+    let y = (1.0 - e) * x + e * (x ** 3);
+    y = y * r + t;
+    y = Math.max(-1.0, Math.min(1.0, y));
+
+    const plotX = cx + px;
+    const plotY = cy - y * scaleY;
+
+    if (px === -scaleX) ctx.moveTo(plotX, plotY);
+    else ctx.lineTo(plotX, plotY);
+  }
+  ctx.stroke();
+}
+
+// ── Programmable Mixing ──────────────────────────────────────────────
+function renderMixesList() {
+  const container = document.getElementById('mixes-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const model = getActiveModel();
+  if (!model || !model.mixing || model.mixing.length === 0) {
+    container.innerHTML = `<div class="empty-hint">No channel mixes active. Click "+ Add Mix" or select a preset below.</div>`;
+    return;
+  }
+
+  model.mixing.forEach((mix, index) => {
+    const card = document.createElement('div');
+    card.className = 'mix-card';
+    card.innerHTML = `
+      <div class="mix-rule">
+        <span>CH ${mix.source || 1}</span>
+        <span class="mix-arrow">➔</span>
+        <span>CH ${mix.destination || 2}</span>
+        <span style="color:var(--text-dim); margin-left:10px;">Weight:</span>
+        <input type="number" class="clay-input mix-weight" data-idx="${index}" value="${mix.weight !== undefined ? mix.weight : 100}" style="width:70px;">
+        <span>%</span>
+      </div>
+      <button class="clay-btn mini danger mix-del" data-idx="${index}">✕</button>
+    `;
+
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.mix-weight').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const idx = parseInt(e.target.dataset.idx, 10);
+      model.mixing[idx].weight = parseInt(e.target.value, 10);
+    });
+  });
+
+  container.querySelectorAll('.mix-del').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.target.dataset.idx, 10);
+      model.mixing.splice(idx, 1);
+      renderMixesList();
+    });
+  });
+}
+
+// ── Endpoints & Failsafe ──────────────────────────────────────────────
+function renderEndpointsTable() {
+  const tbody = document.getElementById('endpoints-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const model = getActiveModel();
+  if (!model) return;
+
+  for (let ch = 1; ch <= 16; ch++) {
+    const k = String(ch);
+    const ep = model.endpoints[k] || { min: -100, max: 100 };
+    const fs = model.failsafe[k] !== undefined ? model.failsafe[k] : 0;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight:700;">CH ${ch}</td>
+      <td>
+        <input type="number" class="clay-input ep-min" data-ch="${ch}" value="${ep.min}" min="-100" max="0" style="width:75px;"> %
+      </td>
+      <td>
+        <input type="number" class="clay-input ep-max" data-ch="${ch}" value="${ep.max}" min="0" max="100" style="width:75px;"> %
+      </td>
+      <td>
+        <input type="number" class="clay-input ep-fs" data-ch="${ch}" value="${fs}" min="-100" max="100" style="width:75px;"> %
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  tbody.querySelectorAll('.ep-min').forEach(inp => {
+    inp.addEventListener('change', (e) => {
+      const ch = e.target.dataset.ch;
+      model.endpoints[ch] = model.endpoints[ch] || { min: -100, max: 100 };
+      model.endpoints[ch].min = parseInt(e.target.value, 10);
+    });
+  });
+
+  tbody.querySelectorAll('.ep-max').forEach(inp => {
+    inp.addEventListener('change', (e) => {
+      const ch = e.target.dataset.ch;
+      model.endpoints[ch] = model.endpoints[ch] || { min: -100, max: 100 };
+      model.endpoints[ch].max = parseInt(e.target.value, 10);
+    });
+  });
+
+  tbody.querySelectorAll('.ep-fs').forEach(inp => {
+    inp.addEventListener('change', (e) => {
+      const ch = e.target.dataset.ch;
+      model.failsafe[ch] = parseInt(e.target.value, 10);
+    });
+  });
+}
+
+// ── Global Event Listeners ───────────────────────────────────────────
+function initEvents() {
+  // Model Select Dropdown
+  const modelSel = document.getElementById('model-select');
+  if (modelSel) {
+    modelSel.addEventListener('change', (e) => {
+      loadModel(e.target.value);
+    });
+  }
+
+  // Model Meta Inputs
+  const nameInput = document.getElementById('model-name-input');
+  if (nameInput) {
+    nameInput.addEventListener('input', (e) => {
+      const model = getActiveModel();
+      if (model) {
+        model.name = e.target.value;
+        const opt = document.querySelector(`#model-select option[value="${currentModelId}"]`);
+        if (opt) opt.textContent = model.name;
+      }
+    });
+  }
+
+  const chCount = document.getElementById('model-channels-count');
+  if (chCount) {
+    chCount.addEventListener('change', (e) => {
+      const model = getActiveModel();
+      if (model) model.channels = parseInt(e.target.value, 10);
+    });
+  }
+
+  // Element Properties inputs
+  ['prop-label', 'prop-w', 'prop-h', 'prop-x', 'prop-y'].forEach(id => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.addEventListener('input', () => {
+      const model = getActiveModel();
+      if (!model || !selectedElementId) return;
+      const el = model.elements.find(e => e.id === selectedElementId);
+      if (!el) return;
+
+      if (id === 'prop-label') el.text = input.value;
+      if (id === 'prop-w') el.width = parseFloat(input.value) || 10;
+      if (id === 'prop-h') el.height = parseFloat(input.value) || 10;
+      if (id === 'prop-x') el.x = parseFloat(input.value) || 0;
+      if (id === 'prop-y') el.y = parseFloat(input.value) || 0;
+
+      renderCanvasElements();
+      renderMappingsTable();
+    });
+  });
+
+  const stickHoldSelect = document.getElementById('prop-stick-hold');
+  if (stickHoldSelect) {
+    stickHoldSelect.addEventListener('change', (e) => {
+      const model = getActiveModel();
+      if (!model || !selectedElementId) return;
+      const el = model.elements.find(item => item.id === selectedElementId);
+      if (el && el.type === 'stick') {
+        el.hold_axis = e.target.value;
+      }
+    });
+  }
+
+  // Add Element button
+  const addBtn = document.getElementById('btn-add-element');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      const type = document.getElementById('add-element-type').value;
+      const model = getActiveModel();
+      if (!model) return;
+
+      const newId = `el_${type}_${Date.now().toString(36)}`;
+      let w = 20, h = 30;
+      if (type === 'stick') { w = 36; h = 64; }
+      else if (type === 'slider') { w = 15; h = 64; }
+      else if (type === 'switch-2pos' || type === 'switch-3pos') { w = 12; h = 26; }
+      else if (type === 'button') { w = 14; h = 24; }
+      else if (type === 'knob') { w = 18; h = 30; }
+
+      const newEl = {
+        id: newId,
+        type: type,
+        x: 40,
+        y: 35,
+        width: w,
+        height: h,
+        text: type.toUpperCase()
+      };
+
+      model.elements.push(newEl);
+
+      // Default channel mapping
+      if (type === 'stick') {
+        model.channel_map[`${newId}_x`] = { channel: 1, reversed: false };
+        model.channel_map[`${newId}_y`] = { channel: 2, reversed: false };
+      } else {
+        model.channel_map[newId] = { channel: 3, reversed: false };
+      }
+
+      renderCanvasElements();
+      selectElement(newId);
+      renderMappingsTable();
+    });
+  }
+
+  // Delete Element button
+  const delElBtn = document.getElementById('btn-del-element');
+  if (delElBtn) {
+    delElBtn.addEventListener('click', () => {
+      const model = getActiveModel();
+      if (!model || !selectedElementId) return;
+      model.elements = model.elements.filter(e => e.id !== selectedElementId);
+      delete model.channel_map[selectedElementId];
+      delete model.channel_map[`${selectedElementId}_x`];
+      delete model.channel_map[`${selectedElementId}_y`];
+      selectElement(null);
+      renderCanvasElements();
+      renderMappingsTable();
+    });
+  }
+
+  // New Model button
+  document.getElementById('btn-new-model').addEventListener('click', () => {
+    const name = prompt("Enter model name (e.g., FPV Drone 6CH):", "New RC Model");
+    if (!name) return;
+    const newId = `model_${Date.now().toString(36)}`;
+    modelsData.models[newId] = {
+      name: name,
+      channels: 8,
+      elements: [
+        { id: "el_stick_1", type: "stick", x: 6, y: 18, width: 38, height: 66, text: "Gimbal Left" },
+        { id: "el_stick_2", type: "stick", x: 56, y: 18, width: 38, height: 66, text: "Gimbal Right" }
+      ],
+      channel_map: {
+        "el_stick_1_x": { channel: 4, reversed: false },
+        "el_stick_1_y": { channel: 3, reversed: false },
+        "el_stick_2_x": { channel: 1, reversed: false },
+        "el_stick_2_y": { channel: 2, reversed: false }
+      },
+      trims: {},
+      rates: {},
+      expo: {},
+      endpoints: {},
+      mixing: [],
+      failsafe: { "3": -100 }
+    };
+    renderModelSelect();
+    loadModel(newId);
+    showToast(`Created ${name}`);
+  });
+
+  // Duplicate Model button
+  document.getElementById('btn-dup-model').addEventListener('click', () => {
+    const model = getActiveModel();
+    if (!model) return;
+    const dupId = `model_${Date.now().toString(36)}`;
+    const copy = JSON.parse(JSON.stringify(model));
+    copy.name = `${copy.name} (Copy)`;
+    modelsData.models[dupId] = copy;
+    renderModelSelect();
+    loadModel(dupId);
+    showToast("Model duplicated");
+  });
+
+  // Delete Model button
+  document.getElementById('btn-del-model').addEventListener('click', () => {
+    const keys = Object.keys(modelsData.models);
+    if (keys.length <= 1) {
+      alert("Cannot delete the only model.");
+      return;
+    }
+    if (confirm(`Delete model "${getActiveModel()?.name}"?`)) {
+      delete modelsData.models[currentModelId];
+      currentModelId = Object.keys(modelsData.models)[0];
+      renderModelSelect();
+      loadModel(currentModelId);
+      showToast("Model deleted");
+    }
+  });
+
+  // Trim, Rate, Expo Sliders
+  document.getElementById('slider-trim').addEventListener('input', (e) => {
+    const val = parseInt(e.target.value, 10);
+    document.getElementById('val-trim').innerText = `${val}%`;
+    const model = getActiveModel();
+    if (model) model.trims[String(activeCurveChannel)] = val;
+    drawExpoCurve();
+  });
+
+  document.getElementById('slider-rate').addEventListener('input', (e) => {
+    const val = parseInt(e.target.value, 10);
+    document.getElementById('val-rate').innerText = `${val}%`;
+    const model = getActiveModel();
+    if (model) model.rates[String(activeCurveChannel)] = val;
+    drawExpoCurve();
+  });
+
+  document.getElementById('slider-expo').addEventListener('input', (e) => {
+    const val = parseInt(e.target.value, 10);
+    document.getElementById('val-expo').innerText = `${val}%`;
+    const model = getActiveModel();
+    if (model) model.expo[String(activeCurveChannel)] = val;
+    drawExpoCurve();
+  });
+
+  // Add Mix button
+  document.getElementById('btn-add-mix').addEventListener('click', () => {
+    const model = getActiveModel();
+    if (!model) return;
+    model.mixing.push({ source: 1, destination: 2, weight: 50, offset: 0 });
+    renderMixesList();
+  });
+
+  // Mix Presets
+  document.getElementById('btn-preset-elevon').addEventListener('click', () => {
+    const model = getActiveModel();
+    if (!model) return;
+    // Elevon: Ail CH1 + Ele CH2 mixed into CH1 & CH2
+    model.mixing = [
+      { source: 1, destination: 1, weight: 50, offset: 0 },
+      { source: 2, destination: 1, weight: 50, offset: 0 },
+      { source: 1, destination: 2, weight: -50, offset: 0 },
+      { source: 2, destination: 2, weight: 50, offset: 0 }
+    ];
+    renderMixesList();
+    showToast("Elevon preset loaded");
+  });
+
+  document.getElementById('btn-preset-vtail').addEventListener('click', () => {
+    const model = getActiveModel();
+    if (!model) return;
+    // V-Tail: Rudder CH4 + Elevator CH2
+    model.mixing = [
+      { source: 2, destination: 2, weight: 50, offset: 0 },
+      { source: 4, destination: 2, weight: 50, offset: 0 },
+      { source: 2, destination: 4, weight: 50, offset: 0 },
+      { source: 4, destination: 4, weight: -50, offset: 0 }
+    ];
+    renderMixesList();
+    showToast("V-Tail preset loaded");
+  });
+
+  document.getElementById('btn-preset-diff').addEventListener('click', () => {
+    const model = getActiveModel();
+    if (!model) return;
+    // Differential Steering: Throttle CH3 + Steering CH1 -> Left Motor CH3, Right Motor CH2
+    model.mixing = [
+      { source: 3, destination: 3, weight: 100, offset: 0 },
+      { source: 1, destination: 3, weight: 50, offset: 0 },
+      { source: 3, destination: 2, weight: 100, offset: 0 },
+      { source: 1, destination: 2, weight: -50, offset: 0 }
+    ];
+    renderMixesList();
+    showToast("Diff Steering preset loaded");
+  });
+
+  // Save Output Config
+  document.getElementById('btn-save-output').addEventListener('click', async () => {
+    const cfg = {
+      enabled: document.getElementById('out-udp-enabled').checked,
+      target_ip: document.getElementById('out-target-ip').value.trim(),
+      target_port: parseInt(document.getElementById('out-target-port').value, 10),
+      protocol: document.getElementById('out-protocol').value
+    };
+    try {
+      await fetch('/api/output', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfg)
+      });
+      showToast("Receiver output settings saved");
+    } catch (e) {
+      alert("Failed to save output config");
+    }
+  });
+
+  // Copy Phone URL
+  document.getElementById('btn-copy-url').addEventListener('click', () => {
+    const url = document.getElementById('phone-url-display').innerText;
+    navigator.clipboard.writeText(url);
+    showToast("Phone link copied to clipboard!");
+  });
+
+  // Save All Changes (Models)
+  document.getElementById('btn-save').addEventListener('click', async () => {
+    try {
+      await fetch('/api/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(modelsData)
+      });
+      showToast("All model changes saved!");
+    } catch (e) {
+      alert("Failed to save models");
+    }
+  });
+
+  // Quit VForce
+  document.getElementById('btn-quit').addEventListener('click', async () => {
+    if (confirm("Shutdown VForce Base Station?")) {
+      try {
+        await fetch('/api/shutdown', { method: 'POST' });
+        window.close();
+      } catch (e) {}
     }
   });
 }
 
-document.getElementById('btn-save').onclick = async () => {
-  const p = profilesData.profiles[currentProfileId];
-  if (p) {
-    p.name = document.getElementById('prof-name').value;
-    p.max_steering_angle = parseInt(document.getElementById('prof-steering-angle').value) || 180;
-    p.wheel_style = document.getElementById('prof-wheel-style').value;
-    p.pedal_style = document.getElementById('prof-pedal-style').value;
-    p.bg_style = document.getElementById('prof-bg-style').value;
-    p.tilt_enabled = document.getElementById('prof-tilt-enabled')?.checked || false;
-    p.tilt_sensitivity = parseFloat(document.getElementById('prof-tilt-sensitivity')?.value) || 1.5;
-    p.tilt_inverted = document.getElementById('prof-tilt-inverted')?.checked || false;
-  }
-  
-  const res = await fetch('/api/profiles', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(profilesData)
-  });
-  if (res.ok) {
-    const status = document.getElementById('save-status');
-    status.innerText = 'Saved successfully!';
-    setTimeout(() => status.innerText = '', 2000);
-  }
-};
-
-document.getElementById('btn-quit').onclick = async () => {
-  if (confirm('Are you sure you want to quit VForce completely?')) {
-    try {
-      await fetch('/api/shutdown', { method: 'POST' });
-    } catch (e) {
-      // The fetch might throw because the server shuts down and abruptly closes the connection
-    }
-    document.body.innerHTML = `
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; color: white;">
-        <h1>VForce Shutdown Successful</h1>
-        <p>The background process has been terminated. You can safely close this window.</p>
-      </div>
-    `;
-  }
-};
-
-loadData().then(() => {
-  // Show/hide tilt sensitivity row based on current profile's tilt_enabled state
-  const tiltChk = document.getElementById('prof-tilt-enabled');
-  const sensRow = document.getElementById('tilt-sensitivity-row');
-  if (tiltChk && sensRow) {
-    sensRow.style.display = tiltChk.checked ? '' : 'none';
-  }
-});
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  toast.innerText = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2800);
+}
