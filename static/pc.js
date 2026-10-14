@@ -222,13 +222,27 @@ function renderCanvasElements() {
     dom.innerHTML = `
       <span class="canvas-el-label">${el.text || el.type}</span>
       ${visualHtml}
+      <div class="resize-handle handle-se" data-mode="both" title="Drag to resize width and height"></div>
+      <div class="resize-handle handle-e" data-mode="width" title="Drag to resize width"></div>
+      <div class="resize-handle handle-s" data-mode="height" title="Drag to resize height"></div>
     `;
 
-    // Click to select
+    // Click to select & drag to move
     dom.addEventListener('mousedown', (e) => {
+      if (e.target.classList.contains('resize-handle')) return;
       e.stopPropagation();
       selectElement(el.id);
       startDragElement(e, el, dom, canvas);
+    });
+
+    // Drag to resize handles
+    dom.querySelectorAll('.resize-handle').forEach(handle => {
+      handle.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        selectElement(el.id);
+        const mode = handle.dataset.mode;
+        startResizeElement(e, el, dom, canvas, mode);
+      });
     });
 
     canvas.appendChild(dom);
@@ -313,6 +327,43 @@ function startDragElement(e, el, dom, canvas) {
     const propY = document.getElementById('prop-y');
     if (propX) propX.value = el.x;
     if (propY) propY.value = el.y;
+  }
+
+  function onMouseUp() {
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+  }
+
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+}
+
+function startResizeElement(e, el, dom, canvas, mode) {
+  const rect = canvas.getBoundingClientRect();
+  const startMouseX = e.clientX;
+  const startMouseY = e.clientY;
+  const startW = el.width;
+  const startH = el.height;
+
+  function onMouseMove(ev) {
+    const deltaW = ((ev.clientX - startMouseX) / rect.width) * 100;
+    const deltaH = ((ev.clientY - startMouseY) / rect.height) * 100;
+
+    if (mode === 'both' || mode === 'width') {
+      let newW = Math.max(8, Math.min(100 - el.x, startW + deltaW));
+      el.width = Math.round(newW);
+      dom.style.width = `${el.width}%`;
+      const propW = document.getElementById('prop-w');
+      if (propW) propW.value = el.width;
+    }
+
+    if (mode === 'both' || mode === 'height') {
+      let newH = Math.max(8, Math.min(100 - el.y, startH + deltaH));
+      el.height = Math.round(newH);
+      dom.style.height = `${el.height}%`;
+      const propH = document.getElementById('prop-h');
+      if (propH) propH.value = el.height;
+    }
   }
 
   function onMouseUp() {
@@ -968,6 +1019,27 @@ function initEvents() {
       showToast("All model changes saved!");
     } catch (e) {
       alert("Failed to save models");
+    }
+  });
+
+  // Toggle Fullscreen
+  const fsBtn = document.getElementById('btn-fullscreen');
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+
+  if (fsBtn) {
+    fsBtn.addEventListener('click', toggleFullscreen);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F11') {
+      e.preventDefault();
+      toggleFullscreen();
     }
   });
 

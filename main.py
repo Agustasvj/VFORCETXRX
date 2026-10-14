@@ -504,6 +504,7 @@ if __name__ == "__main__":
         f"http://localhost:{http_port}/",
         width=1280,
         height=840,
-        min_size=(960, 680)
+        min_size=(960, 680),
+        maximized=True
     )
     webview.start(gui=gui_backend)

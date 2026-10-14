@@ -27,15 +27,25 @@ document.addEventListener('DOMContentLoaded', () => {
   connectWebSocket();
   fetchActiveModel();
 
-  document.getElementById('btn-start').addEventListener('click', async () => {
-    // Request Fullscreen
+  async function requestFullscreenSafe() {
     try {
-      if (document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen();
-      } else if (document.documentElement.webkitRequestFullscreen) {
-        await document.documentElement.webkitRequestFullscreen();
+      if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+        } else if (document.documentElement.webkitRequestFullscreen) {
+          await document.documentElement.webkitRequestFullscreen();
+        }
       }
     } catch (e) {}
+  }
+
+  // Auto request fullscreen on first interaction anywhere
+  document.addEventListener('pointerdown', () => {
+    requestFullscreenSafe();
+  }, { once: true });
+
+  document.getElementById('btn-start').addEventListener('click', async () => {
+    await requestFullscreenSafe();
 
     // Lock screen orientation to landscape if supported
     try {
@@ -46,6 +56,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showScreen('tx-screen');
   });
+
+  const btnTxFs = document.getElementById('btn-tx-fullscreen');
+  if (btnTxFs) {
+    btnTxFs.addEventListener('click', async () => {
+      if (!document.fullscreenElement) {
+        await requestFullscreenSafe();
+      } else {
+        try { if (document.exitFullscreen) await document.exitFullscreen(); } catch (e) {}
+      }
+    });
+  }
 
   document.getElementById('btn-exit').addEventListener('click', () => {
     try {

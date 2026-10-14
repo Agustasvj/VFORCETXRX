@@ -1,5 +1,5 @@
 {
-  "active_model": "default_plane",
+  "active_model": "default_car",
   "models": {
     "default_car": {
       "name": "RC Car (4-Channel)",
@@ -167,10 +167,10 @@
         {
           "id": "el_gimbal_left",
           "type": "stick",
-          "x": 5,
-          "y": 18,
-          "width": 38,
-          "height": 66,
+          "x": 9,
+          "y": 20,
+          "width": 25,
+          "height": 48,
           "text": "Rud / Thr",
           "hold_axis": "y"
         },
@@ -188,8 +188,8 @@
           "type": "switch-3pos",
           "x": 45,
           "y": 18,
-          "width": 10,
-          "height": 28,
+          "width": 13,
+          "height": 22,
           "text": "Flight Mode"
         },
         {
@@ -206,8 +206,8 @@
           "type": "knob",
           "x": 64,
           "y": 6,
-          "width": 10,
-          "height": 30,
+          "width": 12,
+          "height": 23,
           "text": "KNOB"
         }
       ],

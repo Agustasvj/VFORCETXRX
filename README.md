@@ -36,13 +36,15 @@ graph LR
 - 🕹️ **16 RC Channels (CH1–CH16)**: Full standard servo timing range (`1000 µs` min • `1500 µs` center • `2000 µs` max).
 - 🔲 **Square-Bounded Gimbal Travel**: Independent travel boundaries on X and Y axes. Setting throttle to 100% never restricts or compromises rudder deflection!
 - ⚡ **Throttle Hold Mode**: Configure gimbals to hold position on finger release (like a physical throttle stick) or spring-return to center.
+- 📐 **Drag-to-Resize Layout Designer**: Click any control in the PC Phone Screen Designer to reveal corner and edge resize handles. Resize dimensions interactively on the canvas with real-time property sync.
 - 📈 **Interactive Exponential Curves & Dual Rates**: Real-time 2D curve preview graph with customizable exponential softening (0–100%) and rate travel scaling (10–140%).
 - 🔀 **Programmable Channel Mixer**: Custom source-to-destination channel mixing with custom weights and offsets. Includes one-click presets for:
   - **Elevon / Delta Wing** (Flying wings)
   - **V-Tail**
   - **Differential Steering** (Dual-motor tanks / skid-steer rovers)
 - 📊 **Live 16-Channel Telemetry Monitor**: Real-time bi-directional bar gauges showing live deflection, percentage, and exact servo pulse microseconds.
-- 🎨 **Tactile Claymorphic Design**: Clean, minimalistic design with rounded corners, soft clay depth, zero glassmorphism, and no visual clutter.
+- 🎨 **Tactile Claymorphic Design**: Clean, minimalistic design with rounded corners, soft clay depth, zero glassmorphism, and no visual clutter on mobile or desktop.
+- 🖥️ **Maximized Desktop Launch**: Window opens maximized to fill your monitor upon launch with native window controls (`_ ◻ ✕`), plus a `⛶` button and `F11` shortcut for borderless fullscreen.
 - 📡 **Hardware Receiver Output**: Built-in UDP transmitter streaming 16-channel binary packets (`16 x uint16`, 32 bytes) or JSON directly to an ESP32 or NodeMCU receiver over Wi-Fi.
 - 🔒 **Auto-Generated SSL**: Automatic self-signed SSL certificate generation for secure HTTPS access across your local network.
 - 🛡️ **Failsafe System**: Automatic failsafe channel defaults applied when the phone disconnects or loses signal.
